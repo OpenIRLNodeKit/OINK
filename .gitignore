@@ -1,0 +1,56 @@
+# Dev
+notes/
+.opencode
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+
+# Secrets & local env files — never commit
+.env
+.env.*
+!**/.env.example
+*.env
+
+# Operator config for `oink.py -c` (see oink.conf.example)
+/oink.conf
+!oink.conf.example
+
+# Runtime state / logs
+scripts/state/
+scripts/runtime/
+*.state
+*.log
+
+# Editor / OS cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Build output
+dist/
+build/
+
+# Astro site (website/)
+node_modules/
+.astro/
+# Generated in CI from the repo-root install.sh (deploy workflow)
+website/public/install.sh
+# Generated in CI from branding_assets/ (deploy workflow)
+website/public/oink_branding_assets.zip
+
+# Playwright
+dashboard/test-results/
+dashboard/playwright-report/
+dashboard/playwright-results.*
+dashboard/coverage/

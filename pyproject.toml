@@ -1,0 +1,30 @@
+[tool.ruff]
+# The scripts are a flat, stdlib-only Python 3.10+ namespace (run via
+# `python3 scripts/*.py`, imports like `from constants import ...`).
+target-version = "py310"
+line-length = 120
+src = ["scripts"]
+
+[tool.ruff.lint]
+# Baseline: correctness (F), style (E/W), import sorting (I), modernization (UP).
+# Deliberately NOT enabling experimental rule sets (PL, S, C90) here — this is a
+# floor, not a police force. Revisit as the codebase stabilizes.
+select = ["E", "F", "W", "I", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.7",
+]
+
+[tool.coverage.run]
+# Cover the root CLI plus every module in scripts/. Note: coverage is keyed on
+# source location, not import name — `scripts/` (a directory) avoids the
+# top-level `stack` name colliding with the repo's stack/ deploy dir (which is
+# a namespace package, not a Python module).
+source = ["oink", "scripts"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

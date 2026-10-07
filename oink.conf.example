@@ -1,0 +1,38 @@
+# OpenIRLNodeKit operator settings. `oink.py` loads this via `-c FILE`
+# (e.g. `sudo python3 oink.py -c oink.conf setup -y`); real process env wins over
+# this file. Copy to `oink.conf`, chmod 600. Unset keys fall back to built-in
+# defaults / are generated.
+
+# ── Dashboard auth ─────────────────────────────────────────────────────────────
+export OINK_ADMIN_PASSWORD=        # admin bootstrap password; generated+printed at setup if unset
+
+# ── Runtime account ────────────────────────────────────────────────────────────
+export OINK_OBS_USER=obsuser       # unprivileged account OBS + stack run as; set before first setup
+
+# ── Ingest stream key ──────────────────────────────────────────────────────────
+export OINK_INGEST_KEY=            # 20+ chars [A-Za-z0-9_-]; generated if unset
+
+# ── Platform broadcast outputs ─────────────────────────────────────────────────
+export OINK_PRIMARY_PLATFORM=twitch   # twitch|youtube|kick
+export OINK_TWITCH_CHANNEL=           # twitch channel name (overlays; also seeds the welcome screen)
+export OINK_VIDEO_PRESET=             # 720p30|720p60|1080p30|1080p60|1440p60 (seeds the welcome screen)
+export OINK_TWITCH_STREAM_KEY=        # twitch stream key
+export OINK_YOUTUBE_STREAM_KEY=       # youtube stream key
+export OINK_KICK_STREAM_KEY=          # kick stream key
+
+# ── Dashboard web port ─────────────────────────────────────────────────────────
+export OINK_WEB_PORT=8305   # nginx listen port
+
+# ── Trusted fronting proxy (TLS) ───────────────────────────────────────────────
+# Set when you front the box with your own TLS-terminating reverse proxy / tunnel.
+# Turns on nginx real-client-IP resolution (so fail2ban bans the real client),
+# marks the dashboard session cookie Secure, and sends HSTS.
+#   true              -> trust a same-host proxy (loopback)
+#   <CIDR>[,<CIDR>…]  -> trust these proxy addresses, e.g. 10.0.0.0/8,192.168.0.0/16
+#   false / unset     -> off; plain HTTP (nothing changes)
+# Leave unset for plain HTTP: Secure cookies would never be sent and login breaks.
+export OINK_TRUSTED_PROXIES=
+
+# ── NOALBS Twitch chat bot (chat-driven scene switching) ───────────────────────
+export OINK_TWITCH_BOT_USERNAME=   # bot account; must be Editor of your channel
+export OINK_TWITCH_BOT_OAUTH=oauth:   # OAuth from https://twitchapps.com/tmi (format oauth:<token>)

@@ -1,0 +1,130 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="website/src/assets/logo-white.png">
+    <img src="website/src/assets/logo-black.png" alt="OINK logo">
+  </picture>
+</p>
+
+**The open-source, self-hosted OBS cloud streaming server.**
+
+OpenIRLNodeKit (OINK) sits between your mobile or desktop and platforms like Twitch, YouTube, and Kick — providing stream-drop protection, a headless OBS instance you control from a modern browser.
+
+```text
+📱 Phone Encoder ──RTMP/SRT──▶ 🎛️ OINK Ingest ──▶ 🖥️ Headless OBS ──▶ 📡 Twitch/YouTube/Kick
+                                            ▲
+                    🌐 Browser Dashboard + Remote OBS
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Fresh **Ubuntu 24.04 LTS** server install
+  - VM or bare metal
+- 6+ CPU cores, 8+ GB RAM recommended
+
+### Install
+
+One command, from a fresh Ubuntu 24.04 box:
+
+```bash
+curl -fsSL https://openirlnodekit.com/install.sh | sudo bash
+```
+
+Then open the dashboard at `http://<YOUR-IP>:8305`.
+
+Manually:
+
+```bash
+git clone https://github.com/OpenIRLNodeKit/OINK.git
+cd OINK
+sudo python3 oink.py setup
+```
+
+One command does everything — **host phase** (headless OBS, virtual display, VNC, Guacamole remote desktop) then **native stack** (dashboard, Nginx, MediaMTX ingest, NOALBS) — all as systemd units.
+
+A few notes:
+
+- Needs **Node.js ≥ 22.12.0** (Ubuntu 24.04's stock Node 18 is too old). `oink setup` auto-installs Node 22 from NodeSource when missing.
+- Add `-y` to auto-confirm prompts, `--dry-run` to preview. Fully **idempotent** — safe to re-run.
+- First install takes ~3 minutes; every secret (ingest key, admin password, obs-websocket password) is **generated per install** unless you provide it via `-c oink.conf` (below).
+
+### When it's done
+
+| You get | At |
+|---|---|
+| Web dashboard | `http://<YOUR-IP>:8305` |
+| Remote OBS (full UI) | `http://<YOUR-IP>:8081` (sign in to the dashboard first) |
+| RTMP ingest | `rtmp://<YOUR-IP>:1935/live/{stream_key}/{label}` |
+| SRT ingest | `srt://<YOUR-IP>:8890?streamid=publish:live/{stream_key}/{label}` |
+
+The one-time **admin password is printed at the end of setup** — change it on first login. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
+
+### Commands
+
+`setup` installs `oink` (a symlink to `oink.py`) into `/usr/local/bin`, so these run from any directory:
+
+| Command | What it does |
+|---|---|
+| `sudo oink setup` | Full install (host + stack) |
+| `sudo oink cleanup` | Full uninstall from a host |
+| `sudo oink status` | Read-only health report |
+| `sudo oink users` | List users / reset a password |
+
+### Unattended / cloud-init installs
+
+Pass `-c FILE` to load `OINK_*` settings from a config
+file. Copy [`oink.conf.example`](oink.conf.example), set the values you want, then:
+
+```bash
+sudo python3 oink.py -c oink.conf setup -y
+```
+
+Without `-c`, every value is generated/default.
+
+A ready-to-use [`cloud-init.example.yaml`](cloud-init.example.yaml) is included.
+
+Precedence: real process environment > config file > generated/default.
+
+## ✨ Features
+
+- 🖥️ **Headless OBS Studio** — Runs on a virtual display; no monitor required
+- 🌐 **Guacamole Remote Desktop** — Full OBS UI in your browser
+- 🔌 **obs-websocket v5** — Scene switching, stream control
+- 📺 **Web Dashboard** — React Router: live OBS monitor, remote desktop, ingest, recordings, settings
+- 🚀 **First-run Welcome** — Guides channel name, stream keys, and video quality on first login; skipped when the `OINK_*` config already provides them
+- 📡 **MediaMTX Ingest** — RTMP/SRT/RTSP ingest with a per-install secret ingest key
+- 🛡️ **Stream Drop Protection** — Auto-switches to BRB/Low-Bitrate when your feed drops
+- 🎞️ **Overlays** — Easy Twitch clips player, chat overlay, or any custom browser-source URL
+- 💬 **Multi-platform** — Stream to Twitch, YouTube, and Kick; multistream + vertical canvas via OBS plugins
+- ⚙️ **Systemd Managed** — Services start on boot and auto-restart on crash
+
+## 📄 License
+
+AGPL-3.0 — see [LICENSE](LICENSE) for details.
+
+## 🙏 Built With
+
+### 🎥 OBS & Streaming
+
+- [OBS Studio](https://obsproject.com/) — streaming/recording
+- [obs-websocket](https://github.com/obsproject/obs-websocket) — OBS WebSocket API
+- [NOALBS](https://github.com/NOALBS/nginx-obs-automatic-low-bitrate-switching) — stream drop protection
+- [Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas) — vertical canvas plugin
+- [Aitum Multistream](https://github.com/Aitum/obs-aitum-multistream) — stream to Twitch/YouTube/Kick
+- [obs-irl-source](https://github.com/irlserver/obs-irl-source) — IRL media source plugin
+- [irl-clips](https://github.com/irlserver/irl-clips) — IRL clips player
+- [twitch_clips_player](https://github.com/teklynk/twitch_clips_player) — Twitch clips overlay
+
+### 🌐 Web & Remote Desktop
+
+- [React Router](https://reactrouter.com/) — web framework
+- [Vite](https://vite.dev/) — build tool
+- [Apache Guacamole](https://guacamole.apache.org/) — remote desktop gateway
+- [guacamole-lite](https://github.com/vadimpronin/guacamole-lite) — lightweight Guacamole client
+- [x11vnc](https://github.com/LibVNC/x11vnc) — VNC server for X11
+- [MediaMTX](https://github.com/bluenviron/mediamtx) — RTMP/SRT/HLS ingest server
+
+<p align="center">
+  <i>Built with ❤️ for the IRL streaming community</i>
+</p>

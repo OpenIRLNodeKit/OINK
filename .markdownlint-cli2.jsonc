@@ -1,0 +1,22 @@
+{
+  "globs": [
+    "website/src/content/**/*.md"
+  ],
+  "ignores": [
+    "**/node_modules/**"
+  ],
+  "config": {
+    "MD013": false,
+    "MD041": false,
+    "MD051": false,
+    "MD060": false,
+    "MD033": {
+      "allowed_elements": [
+        "p",
+        "picture",
+        "source",
+        "img"
+      ]
+    }
+  }
+}

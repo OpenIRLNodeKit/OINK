@@ -1,0 +1,51 @@
+#cloud-config
+# Example cloud-init user-data for an unattended OpenIRLNodeKit install.
+
+write_files:
+  - path: /tmp/oink-setup.sh
+    owner: ubuntu:ubuntu
+    permissions: '0700'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      # Clone into an empty directory.
+      git clone https://github.com/OpenIRLNodeKit/OINK /opt/OpenIRLNodeKit
+
+      # Move the config into the repo and lock it down.
+      mv /tmp/oink.conf /opt/OpenIRLNodeKit/oink.conf
+      chmod 600 /opt/OpenIRLNodeKit/oink.conf
+
+      # Install: host phase + native stack, non-interactive.
+      python3 /opt/OpenIRLNodeKit/oink.py -c /opt/OpenIRLNodeKit/oink.conf setup -y
+
+  - path: /tmp/oink.conf
+    owner: root:root
+    permissions: '0600'
+    content: |
+      # Dashboard auth
+      export OINK_ADMIN_PASSWORD=change-me-to-a-strong-password
+
+      # Runtime account (must be set before the first setup)
+      export OINK_OBS_USER=obsuser
+
+      # Ingest stream key: 20+ chars of [A-Za-z0-9_-]; blank = generated
+      export OINK_INGEST_KEY=
+
+      # Platform broadcast outputs (seeded once at first boot)
+      export OINK_PRIMARY_PLATFORM=twitch
+      export OINK_TWITCH_CHANNEL=
+      export OINK_VIDEO_PRESET=
+      export OINK_TWITCH_STREAM_KEY=
+      export OINK_YOUTUBE_STREAM_KEY=
+      export OINK_KICK_STREAM_KEY=
+
+      # NOALBS Twitch chat bot
+      export OINK_TWITCH_BOT_USERNAME=
+      export OINK_TWITCH_BOT_OAUTH=oauth:
+
+packages:
+  - git
+
+runcmd:
+  - [bash, /tmp/oink-setup.sh]
