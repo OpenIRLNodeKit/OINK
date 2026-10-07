@@ -1,0 +1,310 @@
+/* SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+ * Design tokens
+ * ------------------------------------------------------------------------- */
+@theme {
+  /* Radii */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-pill: 999px;
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px 0 oklch(0 0 0 / 0.4), 0 1px 3px 0 oklch(0 0 0 / 0.08);
+  --shadow-pop: 0 8px 24px -6px oklch(0 0 0 / 0.45),
+    0 2px 6px -2px oklch(0 0 0 / 0.35);
+
+  /* Default (rose) palette — deep neutral-ink surfaces with a live-rose accent */
+  --color-primary: oklch(0.623 0.216 8.6);
+  --color-primary-hover: oklch(0.68 0.207 8.4);
+  --color-primary-soft: oklch(0.623 0.216 8.6 / 0.12);
+  --color-bg-dark: oklch(0.144 0.014 264);
+  --color-bg-card: oklch(0.176 0.016 264);
+  --color-bg-sidebar: oklch(0.158 0.014 264);
+  --color-bg-elevated: oklch(0.21 0.018 264);
+  --color-bg-overlay: oklch(0.22 0.02 264);
+  --color-text-primary: oklch(0.958 0.005 260);
+  --color-text-secondary: oklch(0.705 0.012 260);
+  --color-text-faint: oklch(0.5 0.012 260);
+  --color-border: oklch(0.265 0.014 264);
+  --color-border-subtle: oklch(0.22 0.012 264);
+  --color-success: oklch(0.695 0.165 152);
+  --color-success-soft: oklch(0.695 0.165 152 / 0.12);
+  --color-warning: oklch(0.78 0.15 79);
+  --color-warning-soft: oklch(0.78 0.15 79 / 0.12);
+  --color-danger: oklch(0.637 0.203 23);
+  --color-danger-soft: oklch(0.637 0.203 23 / 0.12);
+}
+
+[data-theme="slate"] {
+  --color-primary: oklch(0.62 0.17 254);
+  --color-primary-hover: oklch(0.68 0.15 254);
+  --color-primary-soft: oklch(0.62 0.17 254 / 0.14);
+  --color-bg-dark: oklch(0.15 0.016 262);
+  --color-bg-card: oklch(0.183 0.019 262);
+  --color-bg-sidebar: oklch(0.166 0.017 262);
+  --color-bg-elevated: oklch(0.216 0.021 262);
+  --color-bg-overlay: oklch(0.228 0.022 262);
+  --color-text-primary: oklch(0.955 0.006 252);
+  --color-text-secondary: oklch(0.71 0.012 260);
+  --color-text-faint: oklch(0.51 0.013 260);
+  --color-border: oklch(0.27 0.016 262);
+  --color-border-subtle: oklch(0.225 0.014 262);
+}
+
+[data-theme="zinc"] {
+  --color-primary: oklch(0.58 0.008 260);
+  --color-primary-hover: oklch(0.68 0.007 260);
+  --color-primary-soft: oklch(0.58 0.008 260 / 0.14);
+  --color-bg-dark: oklch(0.138 0.004 265);
+  --color-bg-card: oklch(0.172 0.005 265);
+  --color-bg-sidebar: oklch(0.155 0.004 265);
+  --color-bg-elevated: oklch(0.205 0.006 265);
+  --color-bg-overlay: oklch(0.216 0.006 265);
+  --color-text-primary: oklch(0.96 0.002 264);
+  --color-text-secondary: oklch(0.72 0.006 264);
+  --color-text-faint: oklch(0.54 0.007 264);
+  --color-border: oklch(0.28 0.005 264);
+  --color-border-subtle: oklch(0.24 0.005 264);
+}
+
+/* Matches the website light theme (website/src/styles/landing.css:27-44) */
+[data-theme="neutral"] {
+  --color-primary: oklch(0.623 0.216 8.6);
+  --color-primary-hover: oklch(0.68 0.207 8.4);
+  --color-primary-soft: oklch(0.623 0.216 8.6 / 0.1);
+  --color-bg-dark: oklch(0.93 0.035 85);
+  --color-bg-card: oklch(0.965 0.025 85);
+  --color-bg-sidebar: oklch(0.9 0.04 84);
+  --color-bg-elevated: oklch(0.89 0.04 84);
+  --color-bg-overlay: oklch(0.87 0.04 84);
+  --color-text-primary: oklch(0.28 0.022 60);
+  --color-text-secondary: oklch(0.44 0.02 60);
+  --color-text-faint: oklch(0.56 0.025 60);
+  --color-border: oklch(0.8 0.03 75);
+  --color-border-subtle: oklch(0.86 0.03 80);
+  --color-success: oklch(0.6 0.15 152);
+  --color-success-soft: oklch(0.6 0.15 152 / 0.12);
+  --color-warning: oklch(0.68 0.14 79);
+  --color-warning-soft: oklch(0.68 0.14 79 / 0.14);
+  --color-danger: oklch(0.56 0.2 23);
+  --color-danger-soft: oklch(0.56 0.2 23 / 0.1);
+  --shadow-card: 0 1px 2px 0 oklch(0 0 0 / 0.08), 0 1px 3px 0 oklch(0 0 0 / 0.06);
+  --shadow-pop: 0 8px 24px -6px oklch(0 0 0 / 0.12),
+    0 2px 6px -2px oklch(0 0 0 / 0.08);
+}
+
+[data-theme="amber"] {
+  --color-primary: oklch(0.76 0.16 74);
+  --color-primary-hover: oklch(0.82 0.15 74);
+  --color-primary-soft: oklch(0.76 0.16 74 / 0.14);
+  --color-bg-dark: oklch(0.15 0.016 78);
+  --color-bg-card: oklch(0.188 0.019 78);
+  --color-bg-sidebar: oklch(0.17 0.018 78);
+  --color-bg-elevated: oklch(0.224 0.021 78);
+  --color-bg-overlay: oklch(0.236 0.022 78);
+  --color-text-primary: oklch(0.96 0.008 85);
+  --color-text-secondary: oklch(0.72 0.02 85);
+  --color-text-faint: oklch(0.52 0.02 85);
+  --color-border: oklch(0.27 0.02 78);
+  --color-border-subtle: oklch(0.225 0.018 78);
+}
+
+[data-theme="rose"] {
+  --color-primary: oklch(0.623 0.216 8.6);
+  --color-primary-hover: oklch(0.68 0.207 8.4);
+  --color-primary-soft: oklch(0.623 0.216 8.6 / 0.12);
+  --color-bg-dark: oklch(0.15 0.016 358);
+  --color-bg-card: oklch(0.185 0.019 358);
+  --color-bg-sidebar: oklch(0.167 0.017 358);
+  --color-bg-elevated: oklch(0.22 0.021 358);
+  --color-bg-overlay: oklch(0.232 0.022 358);
+  --color-text-primary: oklch(0.96 0.005 40);
+  --color-text-secondary: oklch(0.72 0.015 40);
+  --color-text-faint: oklch(0.52 0.016 40);
+  --color-border: oklch(0.27 0.018 358);
+  --color-border-subtle: oklch(0.225 0.016 358);
+}
+
+[data-theme="stone"] {
+  --color-primary: oklch(0.72 0.02 84);
+  --color-primary-hover: oklch(0.8 0.018 84);
+  --color-primary-soft: oklch(0.72 0.02 84 / 0.14);
+  --color-bg-dark: oklch(0.148 0.014 78);
+  --color-bg-card: oklch(0.182 0.017 78);
+  --color-bg-sidebar: oklch(0.165 0.015 78);
+  --color-bg-elevated: oklch(0.216 0.019 78);
+  --color-bg-overlay: oklch(0.228 0.02 78);
+  --color-text-primary: oklch(0.955 0.008 88);
+  --color-text-secondary: oklch(0.715 0.02 88);
+  --color-text-faint: oklch(0.52 0.018 88);
+  --color-border: oklch(0.268 0.018 78);
+  --color-border-subtle: oklch(0.222 0.016 78);
+}
+
+/* ---------------------------------------------------------------------------
+ * Base
+ * ------------------------------------------------------------------------- */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-dark);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-primary) 28%, transparent);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Refined scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Numerals aligned for dashboards */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reusable surfaces
+ * ------------------------------------------------------------------------- */
+@layer components {
+  .surface {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .surface-hover {
+    transition: border-color 0.15s ease, background-color 0.15s ease,
+      transform 0.15s ease;
+  }
+  .surface-hover:hover {
+    border-color: var(--color-border);
+    background: var(--color-bg-elevated);
+  }
+
+  /* Gradient wordmark — matches website hero (website/src/styles/landing.css) */
+  .grad {
+    background: linear-gradient(
+      100deg,
+      var(--color-primary-hover),
+      var(--color-primary) 55%,
+      color-mix(in oklab, var(--color-primary) 70%, #fff)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  [data-theme="neutral"] .grad {
+    background: linear-gradient(
+      100deg,
+      var(--color-primary),
+      var(--color-primary-hover) 55%,
+      color-mix(in oklab, var(--color-primary) 72%, #000)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  /* Brand icon — white on dark themes, black on the light (neutral) theme */
+  .brand-icon-dark,
+  [data-theme="neutral"] .brand-icon-light {
+    display: block;
+  }
+
+  .brand-icon-light,
+  [data-theme="neutral"] .brand-icon-dark {
+    display: none;
+  }
+
+  /* Ambient accent glow for hero surfaces (login, landing) */
+  .glow-hero {
+    background:
+      radial-gradient(
+        60rem 32rem at 50% -10rem,
+        color-mix(in oklab, var(--color-primary) 14%, transparent),
+        transparent 70%
+      ),
+      var(--color-bg-dark);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar drawer (mobile)
+ * ------------------------------------------------------------------------- */
+@media (max-width: 1279.98px) {
+  #app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(20rem, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 0 20px 60px -12px oklch(0 0 0 / 0.6);
+  }
+  #app-sidebar[data-open="true"] {
+    transform: translateX(0);
+  }
+  #sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: oklch(0 0 0 / 0.55);
+    backdrop-filter: blur(2px);
+  }
+  #sidebar-backdrop[data-open="true"] {
+    display: block;
+  }
+}

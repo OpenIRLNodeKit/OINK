@@ -1,0 +1,7 @@
+// SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import type { Config } from "@react-router/dev/config";
+
+export default {
+  ssr: false,
+} satisfies Config;
