@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OBS Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: #000; overflow: hidden; width: 100%; height: 100%; }
+    #guac-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    #crop-viewport {
+      position: absolute;
+      overflow: hidden;
+    }
+    #controls-toggle {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 1000;
+      padding: 8px 16px;
+      background: rgba(30, 30, 30, 0.9);
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 12px;
+      display: none;
+    }
+    #controls-toggle.visible { display: block; }
+    #controls-toggle:hover { background: rgba(50, 50, 50, 0.95); }
+    #controls-panel {
+      position: fixed;
+      top: 50px;
+      right: 12px;
+      z-index: 999;
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 16px;
+      width: 320px;
+      display: none;
+      font-family: monospace;
+      color: #fff;
+      font-size: 12px;
+    }
+    #controls-panel.visible { display: block; }
+    .control-row {
+      margin-bottom: 12px;
+    }
+    .control-row label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .control-row .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-row input[type="range"] {
+      flex: 1;
+      cursor: pointer;
+    }
+    .control-row input[type="number"] {
+      width: 70px;
+      padding: 4px 6px;
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: right;
+    }
+    .control-row input[type="number"]:focus {
+      outline: none;
+      border-color: #fff;
+    }
+    #reset-btn {
+      width: 100%;
+      padding: 8px;
+      margin-top: 12px;
+      background: #333;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #reset-btn:hover {
+      background: #444;
+    }
+    #values-output {
+      margin-top: 12px;
+      padding: 8px;
+      background: #000;
+      border: 1px solid #333;
+      border-radius: 4px;
+      font-size: 11px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div id="guac-container">
+    <div id="crop-viewport"></div>
+  </div>
+  <button id="controls-toggle">⚙️ Controls</button>
+  <div id="controls-panel">
+    <div class="control-row">
+      <label>X Offset</label>
+      <div class="input-group">
+        <input type="range" id="x-slider" min="0" max="1920" value="337" step="1">
+        <input type="number" id="x-input" min="0" max="1920" step="1" value="337">
+      </div>
+    </div>
+    <div class="control-row">
+      <label>Y Offset</label>
+      <div class="input-group">
+        <input type="range" id="y-slider" min="0" max="1080" value="37" step="1">
+        <input type="number" id="y-input" min="0" max="1080" step="1" value="37">
+      </div>
+    </div>
+    <div class="control-row">
+      <label>Width</label>
+      <div class="input-group">
+        <input type="range" id="width-slider" min="100" max="1920" value="1206" step="1">
+        <input type="number" id="width-input" min="100" max="1920" step="1" value="1206">
+      </div>
+    </div>
+    <div class="control-row">
+      <label>Height</label>
+      <div class="input-group">
+        <input type="range" id="height-slider" min="100" max="1080" value="687" step="1">
+        <input type="number" id="height-input" min="100" max="1080" step="1" value="687">
+      </div>
+    </div>
+    <div id="values-output"></div>
+    <button id="reset-btn">Reset to Defaults</button>
+  </div>
+  <script src="guac.js"></script>
+  <script>
+    const token = '__GUAC_TOKEN__';
+    const container = document.getElementById('guac-container');
+    const cropViewport = document.getElementById('crop-viewport');
+
+    // Reach the guac tunnel on the page's own origin. Served through the
+    // dashboard (nginx) it is the same-origin /guacws/ route (wss under TLS);
+    // the legacy direct :8081 page still talks to :8080.
+    const GUAC_WS_URL = location.port === '8081'
+      ? `ws://${location.hostname}:8080/`
+      : `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/guacws/`;
+
+    const guac = new Guacamole.Client(
+      new Guacamole.WebSocketTunnel(GUAC_WS_URL)
+    );
+
+    const display = guac.getDisplay();
+    const el = display.getElement();
+    cropViewport.appendChild(el);
+    container.appendChild(cropViewport);
+
+    // The token goes in connect data (guacamole-common-js appends "?<data>");
+    // putting it in the tunnel URL produces a double "?" and corrupts it.
+    guac.connect(`token=${encodeURIComponent(token)}`);
+
+    const DEFAULT_CROP = { x: 337, y: 37, width: 1206, height: 687 };
+
+    let previewX = DEFAULT_CROP.x;
+    let previewY = DEFAULT_CROP.y;
+    let previewWidth = DEFAULT_CROP.width;
+    let previewHeight = DEFAULT_CROP.height;
+
+    const xSlider = document.getElementById('x-slider');
+    const ySlider = document.getElementById('y-slider');
+    const widthSlider = document.getElementById('width-slider');
+    const heightSlider = document.getElementById('height-slider');
+    const xInput = document.getElementById('x-input');
+    const yInput = document.getElementById('y-input');
+    const widthInput = document.getElementById('width-input');
+    const heightInput = document.getElementById('height-input');
+    const valuesOutput = document.getElementById('values-output');
+    const controlsToggle = document.getElementById('controls-toggle');
+    const controlsPanel = document.getElementById('controls-panel');
+
+    // Persist crop per preview path so toggling the settings control (which
+    // reloads this iframe) doesn't reset tuned values.
+    const CROP_STORAGE_KEY = 'oinkCrop:' + location.pathname;
+
+    function loadCrop() {
+      try {
+        const c = JSON.parse(localStorage.getItem(CROP_STORAGE_KEY));
+        if (c && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(c[k]) && c[k] >= 0)) {
+          return c;
+        }
+      } catch (e) {}
+      return DEFAULT_CROP;
+    }
+
+    function saveCrop() {
+      try {
+        localStorage.setItem(CROP_STORAGE_KEY, JSON.stringify({
+          x: previewX, y: previewY, width: previewWidth, height: previewHeight,
+        }));
+      } catch (e) {}
+    }
+
+    const savedCrop = loadCrop();
+    xSlider.value = savedCrop.x;
+    ySlider.value = savedCrop.y;
+    widthSlider.value = savedCrop.width;
+    heightSlider.value = savedCrop.height;
+
+    // Check URL parameter for controls
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('controls') === '1') {
+      controlsToggle.classList.add('visible');
+    }
+
+    controlsToggle.addEventListener('click', () => {
+      controlsPanel.classList.toggle('visible');
+    });
+
+    function updateValues() {
+      previewX = parseInt(xSlider.value);
+      previewY = parseInt(ySlider.value);
+      previewWidth = parseInt(widthSlider.value);
+      previewHeight = parseInt(heightSlider.value);
+
+      xInput.value = previewX;
+      yInput.value = previewY;
+      widthInput.value = previewWidth;
+      heightInput.value = previewHeight;
+
+      valuesOutput.textContent = `X: ${previewX}, Y: ${previewY}, Width: ${previewWidth}, Height: ${previewHeight}`;
+
+      saveCrop();
+      resize();
+    }
+
+    xSlider.addEventListener('input', updateValues);
+    ySlider.addEventListener('input', updateValues);
+    widthSlider.addEventListener('input', updateValues);
+    heightSlider.addEventListener('input', updateValues);
+
+    xInput.addEventListener('input', function() {
+      xSlider.value = this.value;
+      updateValues();
+    });
+    yInput.addEventListener('input', function() {
+      ySlider.value = this.value;
+      updateValues();
+    });
+    widthInput.addEventListener('input', function() {
+      widthSlider.value = this.value;
+      updateValues();
+    });
+    heightInput.addEventListener('input', function() {
+      heightSlider.value = this.value;
+      updateValues();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', function() {
+      xSlider.value = DEFAULT_CROP.x;
+      ySlider.value = DEFAULT_CROP.y;
+      widthSlider.value = DEFAULT_CROP.width;
+      heightSlider.value = DEFAULT_CROP.height;
+      updateValues();
+    });
+
+    function resize() {
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      // Scale to fit the CROP into the container (not the full canvas)
+      const scale = Math.min(
+        containerWidth / previewWidth,
+        containerHeight / previewHeight
+      );
+
+      const scaledCropWidth = previewWidth * scale;
+      const scaledCropHeight = previewHeight * scale;
+
+      // Crop viewport centered in container
+      cropViewport.style.width = scaledCropWidth + 'px';
+      cropViewport.style.height = scaledCropHeight + 'px';
+      cropViewport.style.left = ((containerWidth - scaledCropWidth) / 2) + 'px';
+      cropViewport.style.top = ((containerHeight - scaledCropHeight) / 2) + 'px';
+
+      // Canvas inside crop viewport, positioned so crop area is visible
+      el.style.width = '1920px';
+      el.style.height = '1080px';
+      el.style.transform = `scale(${scale})`;
+      el.style.transformOrigin = '0 0';
+      el.style.left = (-previewX * scale) + 'px';
+      el.style.top = (-previewY * scale) + 'px';
+      el.style.position = 'absolute';
+
+      display.scale(1);
+    }
+
+    guac.onstatechange = (state) => {
+      if (state === Guacamole.Client.State.CONNECTED) {
+        updateValues();
+        window.addEventListener('resize', resize);
+      }
+    };
+  </script>
+</body>
+</html>

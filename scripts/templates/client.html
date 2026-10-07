@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<!-- SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<html><head><meta charset="utf-8"><title>OINK Remote OBS</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
+#menu-btn{
+  position:fixed;top:12px;right:12px;z-index:100;
+  width:44px;height:44px;border-radius:10px;cursor:pointer;
+  background:rgba(17,19,23,.75);border:1px solid rgba(255,255,255,.14);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+#fs-btn{
+  position:fixed;top:64px;right:12px;z-index:100;
+  width:44px;height:44px;border-radius:10px;cursor:pointer;
+  background:rgba(17,19,23,.75);border:1px solid rgba(255,255,255,.14);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+#menu-btn:hover,#fs-btn:hover{background:rgba(60,65,82,.85)}
+#menu-btn svg{width:22px;height:22px;display:block}
+#upload-msg{display:none;font-size:12px;color:#f87171;margin-bottom:10px;word-break:break-word}
+#menu-btn,#fs-btn{transition:right .25s ease}
+#sidebar{
+  position:fixed;top:0;right:0;bottom:0;z-index:99;
+  width:340px;max-width:90vw;background:#14161c;color:#e5e7eb;
+  border-left:1px solid #2a2e3a;
+  transform:translateX(100%);transition:transform .25s ease;
+  display:flex;flex-direction:column;font-family:ui-sans-serif,system-ui,sans-serif;
+  cursor:default;
+}
+#sidebar.open{transform:translateX(0)}
+#sidebar .head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;border-bottom:1px solid #2a2e3a;font-weight:600;font-size:15px;
+}
+#sidebar .head button{
+  background:none;border:none;color:#9ca3af;font-size:20px;cursor:pointer;padding:2px 6px;
+}
+#sidebar .head button:hover{color:#fff}
+#sidebar .body{flex:1;overflow-y:auto;padding:16px}
+#drop-zone{
+  border:2px dashed #3b4150;border-radius:12px;padding:26px 16px;
+  text-align:center;color:#9ca3af;font-size:13px;cursor:pointer;
+  transition:all .15s ease;margin-bottom:16px;
+}
+#drop-zone.drag{border-color:#7c3aed;background:rgba(124,58,237,.08);color:#c4b5fd}
+#refresh-btn{
+  width:100%;margin-bottom:16px;padding:8px;border-radius:8px;cursor:pointer;
+  background:#1f2430;border:1px solid #2a2e3a;color:#e5e7eb;font-size:13px;
+}
+#refresh-btn:hover{background:#2a2e3a;color:#fff}
+#file-list{display:flex;flex-direction:column;gap:6px}
+#path-hint{
+  font-size:11px;color:#6b7280;font-family:ui-monospace,monospace;
+  padding:0 2px 8px;word-break:break-all;
+}
+.file-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  background:#1b1e26;border:1px solid #2a2e3a;border-radius:8px;padding:8px 10px;font-size:12px;
+}
+.file-row .meta{display:flex;flex-direction:column;min-width:0;flex:1}
+.file-row .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d1d5db}
+.file-row .size{color:#6b7280;font-size:11px}
+.file-row .actions{display:flex;gap:6px;flex-shrink:0}
+.file-row .icon{width:30px;height:30px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.file-row .icon svg{width:24px;height:24px}
+.file-row .icon.thumb{width:44px;height:34px;border-radius:6px;overflow:hidden;background:#0f1115;border:1px solid #2a2e3a}
+.file-row .icon.thumb img,.file-row .icon.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+.file-row .btn{background:#2a2e3a;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:#9ca3af}
+.file-row .btn:hover{background:#3a4050;color:#fff}
+.file-row .btn.dl{color:#8b5cf6}
+.file-row .btn.dl:hover{background:#3b2f63;color:#c4b5fd}
+.file-row .btn.del:hover{background:#5a2a33;color:#fca5a5}
+#empty-msg{color:#6b7280;font-size:12px;text-align:center;padding:20px 0}
+</style></head>
+<body>
+<script src="guac.js"></script>
+<button id="menu-btn" title="Uploads" aria-label="Uploads">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 15V4"></path><path d="M8 8l4-4 4 4"></path>
+    <path d="M5 15v3a2 2 0 002 2h10a2 2 0 002-2v-3"></path>
+  </svg>
+</button>
+<button id="fs-btn" title="Toggle fullscreen">⛶</button>
+<aside id="sidebar">
+  <div class="head">
+    <span>Dependencies</span>
+    <button id="close-btn" title="Close">×</button>
+  </div>
+  <div class="body">
+    <div id="upload-msg"></div>
+    <div id="drop-zone">
+      Drop images, video, or audio here<br>
+      <span style="font-size:11px;color:#6b7280">or click to browse</span>
+    </div>
+    <button id="refresh-btn">⟳ Refresh</button>
+    <div id="path-hint">__DEP_DIR__</div>
+    <div id="file-list"></div>
+  </div>
+</aside>
+<script>
+const guac = new Guacamole.Client(
+  new Guacamole.WebSocketTunnel(
+    location.port === "8081"
+      ? `ws://${location.hostname}:8080/`
+      : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/guacws/`
+  )
+);
+const display = guac.getDisplay();
+const el = display.getElement();
+document.body.appendChild(el);
+// Token in connect data — guacamole-common-js appends "?<data>"; a token in the
+// tunnel URL yields a double "?" and corrupts it.
+guac.connect(`token=${encodeURIComponent("__GUAC_TOKEN__")}`);
+
+// Sign-out teardown: the dashboard's logout sets the localStorage key below,
+// and a revoked session (password change / disable / expiry) shows up in the
+// auth-status poll. Either way, drop the live VNC socket and re-prompt.
+function endSession() {
+  try { guac.disconnect(); } catch (e) {}
+  location.replace("/");
+}
+// Mirrors LOGOUT_KEY in dashboard/app/lib/auth.ts.
+addEventListener("storage", e => { if (e.key === "oink_logout") endSession(); });
+// ponytail: 15s poll — revocation is server-side (session version bump/expiry);
+// a shorter interval only tightens the window.
+setInterval(async () => {
+  try {
+    const r = await fetch("auth-status");
+    const s = await r.json();
+    if (s && s.enabled && !s.ok) endSession();
+  } catch (e) {}
+}, 15000);
+
+const kb = new Guacamole.Keyboard(window);
+kb.onkeydown = keysym => guac.sendKeyEvent(1, keysym);
+kb.onkeyup   = keysym => guac.sendKeyEvent(0, keysym);
+
+let buttons = 0;
+
+function sendMouse(clientX, clientY) {
+  const r = el.getBoundingClientRect();
+  const x = Math.round((clientX - r.left) * 1920 / r.width);
+  const y = Math.round((clientY - r.top)  * 1080 / r.height);
+  guac.sendMouseState({
+    x: Math.max(0, Math.min(1919, x)),
+    y: Math.max(0, Math.min(1079, y)),
+    left:   !!(buttons & 1),
+    middle: !!(buttons & 2),
+    right:  !!(buttons & 4)
+  });
+}
+
+el.addEventListener("mousedown", e => { buttons |= (1 << e.button); sendMouse(e.clientX, e.clientY); e.preventDefault(); });
+el.addEventListener("mouseup",   e => { buttons &= ~(1 << e.button); sendMouse(e.clientX, e.clientY); e.preventDefault(); });
+el.addEventListener("mousemove", e => { sendMouse(e.clientX, e.clientY); });
+el.addEventListener("contextmenu", e => e.preventDefault());
+
+// ── Dependencies sidebar ────────────────────────────────────────────
+const sidebar = document.getElementById("sidebar");
+const menuBtn = document.getElementById("menu-btn");
+const closeBtn = document.getElementById("close-btn");
+const fsBtn = document.getElementById("fs-btn");
+const dropZone = document.getElementById("drop-zone");
+const fileInput = document.createElement("input");
+fileInput.type = "file";
+fileInput.multiple = true;
+const fileList = document.getElementById("file-list");
+const SIDEBAR_W = 340;
+
+function fit() {
+  const sideW = sidebar.classList.contains("open") ? SIDEBAR_W : 0;
+  const availW = innerWidth - sideW;
+  const s = Math.min(availW / 1920, innerHeight / 1080);
+  display.scale(s);
+  el.style.position = "absolute";
+  el.style.left = ((availW - 1920 * s) / 2) + "px";
+  el.style.top  = ((innerHeight - 1080 * s) / 2) + "px";
+  const r = (sideW ? sideW + 12 : 12) + "px";
+  menuBtn.style.right = r;
+  fsBtn.style.right = r;
+}
+addEventListener("resize", fit); fit();
+
+function updateFsIcon() {
+  fsBtn.textContent = document.fullscreenElement ? "✕" : "⛶";
+  fsBtn.title = document.fullscreenElement ? "Exit fullscreen" : "Toggle fullscreen";
+}
+fsBtn.addEventListener("click", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+});
+document.addEventListener("fullscreenchange", updateFsIcon);
+updateFsIcon();
+
+function formatSize(n) {
+  if (n < 1024) return n + " B";
+  if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+  if (n < 1073741824) return (n / 1048576).toFixed(1) + " MB";
+  return (n / 1073741824).toFixed(1) + " GB";
+}
+
+function extOf(name) {
+  const m = name.match(/\.([^.]+)$/);
+  return m ? m[1].toLowerCase() : "";
+}
+
+function fileType(name) {
+  const e = extOf(name);
+  if (["png","jpg","jpeg","gif","webp","bmp","svg","tif","tiff","ico","avif"].includes(e)) return "image";
+  if (["mp4","mov","mkv","webm","avi","m4v"].includes(e)) return "video";
+  if (["mp3","wav","ogg","m4a","flac","aac"].includes(e)) return "audio";
+  if (["zip","tar","gz","7z","rar"].includes(e)) return "archive";
+  if (e === "pdf") return "pdf";
+  if (["txt","md","log","json","xml","csv","html","htm","css","js","mjs","mpd"].includes(e)) return "code";
+  return "file";
+}
+
+function typeColor(t) {
+  return {
+    image:   "#38bdf8",
+    video:   "#fb923c",
+    audio:   "#4ade80",
+    archive: "#facc15",
+    pdf:     "#f87171",
+    code:    "#c084fc",
+    file:    "#9ca3af"
+  }[t];
+}
+
+function fileIcon(name) {
+  const t = fileType(name);
+  const c = typeColor(t);
+  const s = 'style="stroke:' + c + '"';
+  const round = '<circle cx="12" cy="12" r="9" fill="none" ' + s + ' stroke-width="1.6"></circle>';
+  let glyph = "";
+  if (t === "image") {
+    glyph = '<rect x="4.5" y="5" width="15" height="14" rx="2" fill="none" ' + s + ' stroke-width="1.6"></rect>' +
+            '<circle cx="9" cy="9.5" r="1.4" fill="none" ' + s + ' stroke-width="1.6"></circle>' +
+            '<path d="M5 17l4.5-4.5 3 3L16 12l3 3" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round"></path>';
+  } else if (t === "video") {
+    glyph = '<rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" ' + s + ' stroke-width="1.6"></rect>' +
+            '<path d="M10 9.5l4.5 2.5-4.5 2.5z" fill="' + c + '"></path>';
+  } else if (t === "audio") {
+    glyph = '<path d="M9 18V7l7-1.5V16.5" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>' +
+            '<circle cx="7" cy="18" r="2.2" fill="none" ' + s + ' stroke-width="1.6"></circle>' +
+            '<circle cx="14" cy="16.5" r="2.2" fill="none" ' + s + ' stroke-width="1.6"></circle>';
+  } else if (t === "archive") {
+    glyph = '<path d="M3.5 7.5l3-3h11l3 3" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round"></path>' +
+            '<rect x="4" y="7" width="16" height="12.5" rx="1.5" fill="none" ' + s + ' stroke-width="1.6"></rect>' +
+            '<path d="M10 11h4" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"></path>';
+  } else if (t === "pdf") {
+    glyph = '<path d="M6.5 3.5h7L18 8v12.5H6.5z" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round"></path>' +
+            '<path d="M13.5 3.5V8H18" fill="none" ' + s + ' stroke-width="1.6"></path>' +
+            '<path d="M8 12.5h8M8 16h8" stroke="' + c + '" stroke-width="1.6" stroke-linecap="round"></path>';
+  } else if (t === "code") {
+    glyph = '<path d="M8.5 8l-4.5 4 4.5 4M15.5 8l4.5 4-4.5 4" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>';
+  } else {
+    glyph = '<path d="M6.5 3.5h7L18 8v12.5H6.5z" fill="none" ' + s + ' stroke-width="1.6" stroke-linejoin="round"></path>' +
+            '<path d="M13.5 3.5V8H18" fill="none" ' + s + ' stroke-width="1.6"></path>';
+  }
+  return '<div class="icon">' + (t === "file" ? round : glyph) + "</div>";
+}
+
+function fileThumb(name) {
+  const t = fileType(name);
+  const src = "api/download?name=" + encodeURIComponent(name) + "&inline=1";
+  if (t === "image") {
+    return '<div class="icon thumb"><img src="' + src + '" loading="lazy" alt=""></div>';
+  }
+  if (t === "video") {
+    return '<div class="icon thumb"><video src="' + src + '" muted playsinline preload="metadata"></video></div>';
+  }
+  return fileIcon(name);
+}
+
+async function loadFiles() {
+  try {
+    const r = await fetch("api/files");
+    const data = await r.json();
+    renderFiles(data.files || []);
+  } catch (e) {
+    fileList.innerHTML = '<div id="empty-msg">Failed to load files</div>';
+  }
+}
+
+function renderFiles(files) {
+  fileList.innerHTML = "";
+  if (!files.length) {
+    fileList.innerHTML = '<div id="empty-msg">No files yet — drop some below</div>';
+    return;
+  }
+  files.forEach(f => {
+    const row = document.createElement("div");
+    row.className = "file-row";
+    row.innerHTML = fileThumb(f.name);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = f.name;
+    name.title = f.name;
+    const size = document.createElement("span");
+    size.className = "size";
+    size.textContent = formatSize(f.size);
+    meta.appendChild(name);
+    meta.appendChild(size);
+    row.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const dlBtn = document.createElement("button");
+    dlBtn.className = "btn dl";
+    dlBtn.textContent = "Download";
+    dlBtn.title = "Download \"" + f.name + "\"";
+    dlBtn.onclick = e => {
+      e.stopPropagation();
+      const a = document.createElement("a");
+      a.href = "api/download?name=" + encodeURIComponent(f.name);
+      a.download = f.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn del";
+    delBtn.textContent = "Delete";
+    delBtn.title = "Delete \"" + f.name + "\"";
+    delBtn.onclick = async e => {
+      e.stopPropagation();
+      await fetch("api/files?name=" + encodeURIComponent(f.name), { method: "DELETE" });
+      loadFiles();
+    };
+    actions.appendChild(dlBtn);
+    actions.appendChild(delBtn);
+
+    row.appendChild(actions);
+    fileList.appendChild(row);
+  });
+}
+
+function uploadFiles(fileArr) {
+  const fd = new FormData();
+  for (const f of fileArr) fd.append("files", f);
+  const msg = document.getElementById("upload-msg");
+  fetch("api/upload", { method: "POST", body: fd })
+    .then(r => r.json())
+    .then(d => {
+      if (d && d.errors && d.errors.length) {
+        msg.textContent = d.errors.join("; ");
+        msg.style.display = "block";
+      } else {
+        msg.style.display = "none";
+      }
+      loadFiles();
+    })
+    .catch(() => loadFiles());
+}
+
+dropZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => { if (fileInput.files.length) uploadFiles([...fileInput.files]); fileInput.value = ""; });
+
+["dragenter", "dragover"].forEach(t =>
+  dropZone.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.add("drag"); })
+);
+["dragleave", "drop"].forEach(t =>
+  dropZone.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); dropZone.classList.remove("drag"); })
+);
+dropZone.addEventListener("drop", e => {
+  if (e.dataTransfer.files.length) uploadFiles([...e.dataTransfer.files]);
+});
+
+document.getElementById("refresh-btn").addEventListener("click", loadFiles);
+loadFiles();
+
+menuBtn.addEventListener("click", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  const willOpen = !sidebar.classList.contains("open");
+  sidebar.classList.toggle("open", willOpen);
+  fit();
+});
+closeBtn.addEventListener("click", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  sidebar.classList.remove("open");
+  fit();
+});
+
+// Clicks on the VNC canvas shouldn't close the sidebar or interfere
+el.addEventListener("mousedown", e => {
+  if (sidebar.classList.contains("open")) e.preventDefault();
+});
+</script></body></html>

@@ -1,0 +1,21 @@
+[Unit]
+Description=OINK dashboard API / log server (:8082, loopback only)
+After=network-online.target oink-nginx.service oink-obs.service
+Wants=network-online.target oink-obs.service
+
+[Service]
+User=$OINK_USER
+WorkingDirectory=$STACK_DIR
+EnvironmentFile=$STACK_DIR/api.env
+Environment=OINK_STACK_DIR=$STACK_DIR
+Environment=OBS_LOG_DIR=$OBS_LOG_DIR
+Environment=OBS_ASSET_DIR=$OBS_ASSET_DIR
+Environment=OBS_RECORDING_DIR=$OBS_RECORDING_DIR
+Environment=OBS_WS_HOST=127.0.0.1
+Environment=API_BIND_HOST=127.0.0.1
+ExecStart=/usr/bin/node $STACK_DIR/log-server.js 8082
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

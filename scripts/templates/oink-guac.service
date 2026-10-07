@@ -1,0 +1,18 @@
+[Unit]
+Description=Guacamole-lite tunnel (OBS remote desktop)
+# guacd is the distro unit (apt package), bound to 127.0.0.1:4822.
+Requires=guacd.service oink-vnc.service
+After=guacd.service oink-vnc.service
+
+[Service]
+User=$OINK_USER
+WorkingDirectory=$GUAC_DIR
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+# The tunnel's graceful shutdown can hang (open ws connections); bound the
+# stop so systemd never wedges in "deactivating" during key-rotation restarts.
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

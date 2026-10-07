@@ -1,0 +1,22 @@
+[Unit]
+Description=OINK Nginx reverse proxy + dashboard (unprivileged port)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Nginx's model: the master must start as root to bind the (unprivileged)
+# dashboard port, then it drops its workers to the user/group declared in
+# nginx.conf (the stack runtime user, so the obsuser-owned SPA tree stays
+# readable).
+User=root
+Environment=HOME=$OBS_HOME
+NoNewPrivileges=true
+WorkingDirectory=$STACK_DIR
+ExecStart=/usr/sbin/nginx -c $STACK_DIR/nginx.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=2
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+# OpenIRLNodeKit: fail2ban jail for dashboard-login brute force.
+#
+# Bans a client that fails the dashboard login maxretry times in findtime.
+# ignoreip always covers loopback and, when the operator fronts the box with a
+# trusted proxy (OINK_TRUSTED_PROXIES), the proxy addresses too — fail2ban must
+# never ban the fronting proxy or itself.
+#
+# Installed to /etc/fail2ban/jail.d/oink-auth.local by `oink setup` §5.
+[oink-auth]
+enabled  = true
+filter   = oink-auth
+port     = __OINK_WEB_PORT__
+logpath  = __TMP_DIR__/oink-access.log
+backend  = auto
+maxretry = 5
+findtime = 10m
+bantime  = 1h
+ignoreip = 127.0.0.1/8 ::1 __TRUSTED_PROXY_IGNORE__

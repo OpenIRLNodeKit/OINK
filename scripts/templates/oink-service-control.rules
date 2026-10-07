@@ -1,0 +1,23 @@
+// OpenIRLNodeKit: allow the runtime user to start/stop/restart exactly the
+// services the dashboard controls — nothing more. No unit-file management
+// (enable/disable/edit) and no other units are granted, so a compromise of the
+// dashboard API cannot touch the rest of the host.
+//
+// oink-obs.service is included so the dashboard's Plugins manager can reload
+// OBS after installing/removing a plugin (gated behind an explicit user
+// confirmation in the UI). Restarting OBS drops the live ingest for a few
+// seconds.
+//
+// Keep in sync with CTRL_UNITS in stack/log-server.js.
+// polkit's JS engine is ES5-era: no Array.prototype.includes, arrow fns, etc.
+// Use indexOf for membership tests.
+polkit.addRule(function (action, subject) {
+  if (
+    action.id == "org.freedesktop.systemd1.manage-units" &&
+    subject.user == "$OINK_USER" &&
+    ["oink-mediamtx.service", "oink-noalbs.service", "oink-obs.service"].indexOf(action.lookup("unit")) !== -1 &&
+    ["start", "stop", "restart"].indexOf(action.lookup("verb")) !== -1
+  ) {
+    return polkit.Result.YES;
+  }
+});

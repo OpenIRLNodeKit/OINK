@@ -1,0 +1,14 @@
+[Unit]
+Description=OINK MediaMTX ingest (RTMP/RTSP/SRT)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=$OINK_USER
+WorkingDirectory=$STACK_DIR
+ExecStart=$STACK_DIR/bin/mediamtx $STACK_DIR/mediamtx.yml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

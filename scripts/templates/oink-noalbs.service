@@ -1,0 +1,14 @@
+[Unit]
+Description=OINK NOALBS automatic OBS scene switcher
+After=oink-display.service oink-obs.service oink-mediamtx.service
+
+[Service]
+User=$OINK_USER
+WorkingDirectory=$STACK_DIR/noalbs
+EnvironmentFile=-$STACK_DIR/noalbs/.env
+ExecStart=$STACK_DIR/bin/noalbs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

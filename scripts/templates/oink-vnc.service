@@ -1,0 +1,21 @@
+[Unit]
+Description=x11vnc attached to :99 (loopback only)
+Requires=oink-display.service
+After=oink-display.service
+# The loopback-only port guard (oink-firewall.service) drops public inbound to
+# :5900; pull it in and run after it so the drop exists before x11vnc binds.
+Wants=oink-firewall.service
+After=oink-firewall.service
+
+[Service]
+ExecStartPre=/bin/sh -c 'until DISPLAY=:99 xdpyinfo >/dev/null 2>&1; do sleep 1; done'
+# x11vnc 0.9.16's `-listen` only constrains the IPv4 socket; it still opens an
+# IPv6 wildcard listener on 5900. oink-firewall.service drops public inbound to
+# :5900 (both families) before this unit starts; guacd reaches VNC over the host
+# loopback, which is never dropped.
+ExecStart=/usr/bin/x11vnc -display :99 -forever -shared -nopw -quiet -listen 127.0.0.1
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

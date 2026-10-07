@@ -1,0 +1,10 @@
+{
+  "name": "oink-guac",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OINK Guacamole tunnel deps (pinned).",
+  "dependencies": {
+    "busboy": "1.6.0",
+    "guacamole-lite": "1.2.0"
+  }
+}

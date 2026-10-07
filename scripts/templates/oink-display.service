@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenIRLNodeKit virtual display (Xorg :99, dummy)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/Xorg :99 -nolisten tcp -ac -noreset
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

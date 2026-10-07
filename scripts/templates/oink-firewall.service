@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Installed to /etc/systemd/system/oink-firewall.service by `oink setup` §6.
+# Blocks public inbound to loopback-only service ports (see oink-firewall.sh).
+# Ordered before the services whose wildcard listeners it guards (obs-ws 4455,
+# x11vnc 5900) so the drop is in place before they bind.
+[Unit]
+Description=OpenIRLNodeKit loopback-only port guard
+After=network-online.target
+Wants=network-online.target
+Before=oink-obs.service oink-vnc.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=$OINK_LIBEXEC/oink-firewall.sh
+ExecStop=/usr/sbin/nft delete table inet oink
+
+[Install]
+WantedBy=multi-user.target
