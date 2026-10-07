@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "comment": "Canonical backup source set. Read by scripts/backup.py (CLI) and stack/backup.js (dashboard). `root` selects the base dir; `rel` is relative to it. `kind` file|dir. `toggle` entries are opt-in and skipped by the CLI. `restore: cli-only` marks files the dashboard API must not write (needs root/unit restarts it can't do).",
+  "roots": {
+    "stack": "stack_dir",
+    "obs": "obs_cfg",
+    "assets": "dep_dir",
+    "recordings": "recording_dir"
+  },
+  "entries": [
+    { "root": "stack", "rel": "users.json", "kind": "file" },
+    { "root": "stack", "rel": "ingest.json", "kind": "file" },
+    { "root": "stack", "rel": "profiles.json", "kind": "file" },
+    { "root": "stack", "rel": "api.env", "kind": "file", "restore": "cli-only" },
+    { "root": "stack", "rel": "mediamtx.yml", "kind": "file" },
+    { "root": "stack", "rel": "noalbs/config.json", "kind": "file" },
+    { "root": "stack", "rel": "noalbs/.env", "kind": "file" },
+    { "root": "stack", "rel": "assets/avatars", "kind": "dir" },
+    { "root": "obs", "rel": "global.ini", "kind": "file" },
+    { "root": "obs", "rel": "user.ini", "kind": "file" },
+    { "root": "obs", "rel": "basic/scenes", "kind": "dir" },
+    { "root": "obs", "rel": "basic/profiles", "kind": "dir" },
+    { "root": "assets", "rel": "", "kind": "dir", "toggle": "assets" },
+    { "root": "recordings", "rel": "", "kind": "dir", "toggle": "recordings" }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "oink-log-server",
+  "version": "26.09.1",
+  "private": true,
+  "scripts": {
+    "test": "node --test *.test.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "ws": "^8.18.0"
+  }
+}

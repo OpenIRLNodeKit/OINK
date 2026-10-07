@@ -1,0 +1,86 @@
+###############################################
+# MediaMTX configuration for OpenIRLNodeKit
+#
+# This is the REPO TEMPLATE. The stack phase (stack.py §4) renders it, replacing
+# the key placeholder with the per-install secret, and writes the result to
+# ~/oink/stack/mediamtx.yml. Never run this file directly — the placeholder is
+# not a valid key.
+#
+# ## Ingest security model (stream keys)
+# Publishing/reading is allowed ONLY on paths under the keyed namespace
+# `live/<key>/`. The canonical ingest path is `live/<key>/<label>` where <label>
+# is the per-profile stream name shown in the dashboard:
+#   * RTMP  rtmp://host:1935/live/<key>/<label>
+#   * SRT   srt://host:8890?streamid=publish:live/<key>/<label>
+#           srt://host:8890?streamid=read:live/<key>/<label>   (OBS pulls)
+#   * SRTLA #!::m=publish,r=live/<key>/<label>
+# Any other path is refused: the internal-auth grant below scopes publish/read
+# to the keyed namespace (regex via `~`), and there is no `all_others` entry, so
+# a client that guesses a different path gets "path not configured".
+
+# Log level
+logLevel: info
+logDestinations: [stdout]
+
+# RTMP server
+rtmp: yes
+rtmpAddress: :1935
+
+# SRT server
+srt: yes
+srtAddress: :8890
+
+# Protocol lockdown. OINK only uses RTMP + SRT; MediaMTX enables RTSP, HLS,
+# WebRTC and MoQ by default on all interfaces. Turn them off so the only
+# public listeners are :1935/tcp and :8890/udp.
+rtsp: no
+hls: no
+webrtc: no
+moq: no
+
+# API server (used by NOALBS + dashboard)
+api: yes
+# Loopback only: NOALBS and the dashboard reach it on the host; do not expose
+# the control API on the network.
+apiAddress: 127.0.0.1:9997
+
+# Metrics (Prometheus). Off today; if enabled, keep it loopback-only so it
+# never becomes a public listener.
+metricsAddress: 127.0.0.1:9998
+
+# Internal authentication. The 'any' entry grants publish/read ONLY on the keyed
+# namespace (~^live/<key>/ — regex), so phone encoders can push and same-box OBS
+# can pull, while every other path is refused. A second loopback-only 'any'
+# entry grants the API/metrics actions (NOALBS polls stats on 127.0.0.1:9997);
+# it is restricted to localhost so it never widens external access.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+        path: ~^live/__STREAM_KEY__/
+      - action: read
+        path: ~^live/__STREAM_KEY__/
+  - user: any
+    pass:
+    ips: ["127.0.0.1", "::1"]
+    permissions:
+      - action: api
+        path:
+      - action: metrics
+        path:
+
+# Path configuration.
+# `live/<key>/irl` is the statically configured default monitored ingest path —
+# it is declared so the path record ALWAYS exists: NOALBS polls it via
+# /v3/paths/get/live/<key>/irl and needs the object (with bytesReceived)
+# present even while idle. The reserved `irl` profile is non-deletable.
+# `~^live/<key>/` is a regex namespace entry so any `<label>` under the key is
+# publishable/readable without declaring every name in advance. There is no
+# `all_others`, so unlisted paths (outside the namespace) are refused.
+paths:
+  live/__STREAM_KEY__/irl:
+    source: publisher
+  ~^live/__STREAM_KEY__/:
+    source: publisher

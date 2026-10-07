@@ -1,0 +1,75 @@
+{
+  "user": {
+    "id": null,
+    "name": "OINK",
+    "passwordHash": null
+  },
+  "switcher": {
+    "bitrateSwitcherEnabled": true,
+    "onlySwitchWhenStreaming": false,
+    "instantlySwitchOnRecover": true,
+    "autoSwitchNotification": true,
+    "retryAttempts": 5,
+    "triggers": {
+      "low": 900,
+      "rtt": 2500,
+      "offline": 300
+    },
+    "switchingScenes": {
+      "normal": "main",
+      "low": "low-br",
+      "offline": "offline"
+    },
+    "streamServers": [
+      {
+        "streamServer": {
+          "type": "Mediamtx",
+          "statsUrl": "http://127.0.0.1:9997/v3/paths/get/live/__STREAM_KEY__/irl",
+          "publisher": ""
+        },
+        "name": "OINK Ingest",
+        "priority": 0,
+        "overrideScenes": null,
+        "dependsOn": null,
+        "enabled": true
+      }
+    ]
+  },
+  "software": {
+    "type": "Obs",
+    "host": "127.0.0.1",
+    "password": "",
+    "port": 4455
+  },
+  "chat": {
+    "platform": "Twitch",
+    "username": "",
+    "admins": [],
+    "language": "EN",
+    "prefix": "!",
+    "enablePublicCommands": false,
+    "enableModCommands": true,
+    "enableAutoStopStreamOnHostOrRaid": true,
+    "announceRaidOnAutoStop": true,
+    "commands": {
+      "Fix": { "permission": null, "userPermissions": [], "alias": ["f"] },
+      "Switch": { "permission": "Mod", "alias": ["ss"] },
+      "Bitrate": { "permission": null, "alias": ["b"] }
+    }
+  },
+  "optionalScenes": {
+    "starting": null,
+    "ending": null,
+    "privacy": "privacy",
+    "refresh": null
+  },
+  "optionalOptions": {
+    "twitchTranscodingCheck": false,
+    "twitchTranscodingRetries": 5,
+    "twitchTranscodingDelaySeconds": 15,
+    "offlineTimeout": null,
+    "recordWhileStreaming": false,
+    "switchToStartingSceneOnStreamStart": false,
+    "switchFromStartingSceneToLiveScene": false
+  }
+}

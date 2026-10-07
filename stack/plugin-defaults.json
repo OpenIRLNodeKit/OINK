@@ -1,0 +1,37 @@
+{
+  "min_obs": [30, 0],
+  "vertical_canvas": {
+    "name": "Aitum Vertical",
+    "uuid": "0f5d712a-f8aa-44e0-acaa-1da0f9a7a645",
+    "width": 1080,
+    "height": 1920,
+    "main_canvas_uuid": "6c69626f-6273-4c00-9d88-c5136d61696e",
+    "min_obs": [31, 1]
+  },
+  "plugins": [
+    {
+      "name": "obs-irl-source",
+      "version": "2.0.0",
+      "url": "https://github.com/irlserver/obs-irl-source/releases/download/v2.0.0/obs-irl-source-2.0.0-linux-x64.tar.gz",
+      "sha256": "189ba30e54fc610af81c17e1aa33b6add357cf23aa193fe511cb95cf31f09a16",
+      "kind": "tar",
+      "min_obs": [32, 1]
+    },
+    {
+      "name": "aitum-multistream",
+      "version": "1.0.8",
+      "url": "https://github.com/Aitum/obs-aitum-multistream/releases/download/1.0.8/aitum-multistream-linux-gnu.deb",
+      "sha256": "08f0e869be80a1c44ca265a3fadfac033c3f4c8d4c7fb1f8d28838b9554d9c6d",
+      "kind": "deb",
+      "min_obs": [30, 0]
+    },
+    {
+      "name": "vertical-canvas",
+      "version": "1.6.4",
+      "url": "https://github.com/Aitum/obs-vertical-canvas/releases/download/1.6.4/vertical-canvas-linux-gnu.deb",
+      "sha256": "c982d6acf248f83e7e97d354055e245fa6957b66715f4249b849d913042aaf37",
+      "kind": "deb",
+      "min_obs": [30, 0]
+    }
+  ]
+}

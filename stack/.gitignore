@@ -1,0 +1,11 @@
+# runtime deps (npm install --omit=dev in stack/)
+/node_modules/
+
+# per-install secrets & runtime artifacts — provisioned at `oink setup` install
+# time, never committed. The repo tracks templates only:
+#   noalbs/.env.example      → copied to noalbs/.env on install
+#   noalbs/config.template   → rendered to noalbs/config.json on install
+/api.env
+/noalbs/.env
+/noalbs/config.json
+*.log
