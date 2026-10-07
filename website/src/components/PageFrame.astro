@@ -1,0 +1,75 @@
+---
+// SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Reuse default PageFrame (transfer its `header`/`sidebar` named slots), then
+// append a body-level footer so it spans the full page width.
+import Default from '@astrojs/starlight/components/PageFrame.astro';
+import { ICONS } from '../data/icons';
+---
+
+<Default>
+	<slot name="header" slot="header" />
+	<slot name="sidebar" slot="sidebar" />
+	<slot />
+</Default>
+
+<footer class="oink-footer">
+	<div class="oink-footer-inner">
+		<span>© 2026 OpenIRLNodeKit · AGPL-3.0-or-later</span>
+		<a href="/">Home</a>
+		<a href="/oink_branding_assets.zip" download>Branding assets</a>
+		<a class="sponsor" href="https://github.com/sponsors/ImaginaryResources" target="_blank" rel="noopener noreferrer">
+			<span set:html={ICONS.heart} />Sponsor
+		</a>
+		<a class="right" href="https://github.com/OpenIRLNodeKit/OINK" target="_blank" rel="noopener noreferrer">GitHub</a>
+	</div>
+</footer>
+
+<style>
+	footer.oink-footer {
+		z-index: 6; /* above var(--sl-z-index-menu)=5: cover fixed sidebar/TOC */
+		border-top: 1px solid var(--sl-color-hairline);
+		padding: 2.25rem 0 3rem;
+		background: var(--sl-color-bg);
+		color: var(--sl-color-gray-3);
+		font-size: 14px;
+	}
+
+	.oink-footer-inner {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 16px;
+		max-width: 1100px;
+		margin: 0 auto;
+		padding: 0 24px;
+	}
+
+	.oink-footer-inner a {
+		color: var(--sl-color-gray-2);
+		text-decoration: none;
+	}
+
+	.oink-footer-inner a:hover {
+		color: var(--sl-color-white);
+	}
+
+	.oink-footer-inner a.sponsor {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4em;
+		color: var(--sl-color-accent-high);
+	}
+
+	.oink-footer-inner a.sponsor :global(svg) {
+		display: block;
+	}
+
+	.oink-footer-inner a.sponsor:hover {
+		color: var(--sl-color-white);
+	}
+
+	.oink-footer-inner .right {
+		margin-left: auto;
+	}
+</style>

@@ -1,0 +1,120 @@
+/* SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors */
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/*
+ * Rose/dark theme matching the landing page palette.
+ * Tokens from src/components/Landing.astro lines 66-90.
+ */
+
+/* Dark (default) — matches landing page */
+:root {
+  /* Gray scale — rose-tinted, matching landing page borders/bg/elevated */
+  --sl-color-white: oklch(0.96 0.005 40);
+  --sl-color-gray-1: oklch(0.96 0.005 40);
+  --sl-color-gray-2: oklch(0.72 0.015 40);
+  --sl-color-gray-3: oklch(0.52 0.016 40);
+  --sl-color-gray-4: oklch(0.27 0.018 358);
+  --sl-color-gray-5: oklch(0.22 0.021 358);
+  --sl-color-gray-6: oklch(0.167 0.017 358);
+  --sl-color-black: oklch(0.15 0.016 358);
+
+  /* Accent — rose */
+  --sl-color-accent-low: oklch(0.623 0.216 8.6 / 0.12);
+  --sl-color-accent: oklch(0.623 0.216 8.6);
+  --sl-color-accent-high: oklch(0.68 0.207 8.4);
+
+  /* Semantic text */
+  --sl-color-text: var(--sl-color-gray-2);
+  --sl-color-text-accent: var(--sl-color-accent-high);
+
+  /* Backgrounds */
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: var(--sl-color-gray-6);
+  --sl-color-bg-sidebar: var(--sl-color-gray-6);
+  --sl-color-bg-inline-code: oklch(0.22 0.021 358);
+  --sl-color-bg-accent: var(--sl-color-accent-high);
+
+  /* Borders */
+  --sl-color-hairline-light: oklch(0.225 0.016 358);
+  --sl-color-hairline: oklch(0.27 0.018 358);
+  --sl-color-hairline-shade: oklch(0.15 0.016 358);
+
+  /* Overlay */
+  --sl-color-backdrop-overlay: oklch(0.15 0.016 358 / 0.66);
+}
+
+/* Active sidebar link — soft rose tint, readable text */
+:root [aria-current='page'] {
+  background-color: color-mix(in oklab, var(--sl-color-accent) 25%, transparent);
+  color: var(--sl-color-white);
+}
+
+/* Always-expanded sidebar categories — no dropdown toggle */
+.sidebar summary {
+  pointer-events: none;
+  cursor: default;
+}
+.sidebar summary .caret {
+  display: none;
+}
+
+/* No text fallback for the logo image (prevents "OINK" flash on load) */
+.site-title img {
+  color: transparent;
+}
+
+/* Light variant — same rose accent on warm washi-paper ivory */
+:root[data-theme='light'] {
+  /* Gray scale — warm ink on aged paper */
+  --sl-color-white: oklch(0.28 0.022 60);
+  --sl-color-gray-1: oklch(0.28 0.022 60);
+  --sl-color-gray-2: oklch(0.36 0.02 60);
+  --sl-color-gray-3: oklch(0.55 0.025 60);
+  --sl-color-gray-4: oklch(0.78 0.03 75);
+  --sl-color-gray-5: oklch(0.86 0.035 80);
+  --sl-color-gray-6: oklch(0.9 0.04 85);
+  --sl-color-black: oklch(0.93 0.035 85);
+
+  /* Accent — same rose as dark theme */
+  --sl-color-accent-low: oklch(0.623 0.216 8.6 / 0.1);
+  --sl-color-accent: oklch(0.623 0.216 8.6);
+  --sl-color-accent-high: oklch(0.68 0.207 8.4);
+
+  /* Semantic text */
+  --sl-color-text-accent: var(--sl-color-accent);
+
+  /* Backgrounds */
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: var(--sl-color-gray-6);
+  --sl-color-bg-sidebar: var(--sl-color-gray-6);
+  --sl-color-bg-inline-code: var(--sl-color-gray-5);
+  --sl-color-bg-accent: var(--sl-color-accent);
+
+  /* Borders */
+  --sl-color-hairline-light: var(--sl-color-gray-5);
+  --sl-color-hairline: var(--sl-color-gray-4);
+  --sl-color-hairline-shade: var(--sl-color-gray-6);
+
+  /* Overlay */
+  --sl-color-backdrop-overlay: oklch(0.6 0.03 85 / 0.4);
+}
+
+/*
+ * Body-level full-width footer (see src/components/PageFrame.astro).
+ * Starlight's .page is min-height:100vh; make body a column so the footer
+ * pinned by flex sits at the bottom on short pages and after content on long.
+ * ponytail: couples to Starlight's `.page`/`.main-frame` class names. If an
+ * upgrade renames them, the footer just stops sticking — purely visual.
+ */
+html {
+  height: 100%;
+  overscroll-behavior-y: none; /* no rubber-band past the footer */
+}
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.page {
+  min-height: auto;
+  flex: 1;
+}
