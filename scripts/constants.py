@@ -76,15 +76,18 @@ VERIFY_TIMEOUT = 90
 # Distro requirements (OBS PPA is Ubuntu-only).
 MIN_VERSIONS = {"ubuntu": "24.04"}
 
-# ── Default OBS plugins ───────────────────────────────────────────────────────
-# The plugins that ship with every build are installed by the §4c (§4d)
-# host-setup phases and exposed as non-removable entries in the dashboard's
-# plugin manager. Their pinned release metadata (download URL, sha256, packaging
-# kind, minimum OBS) lives in stack/plugin-defaults.json — the SAME file
-# log-server.js reads — so bumping a plugin version is a one-file, data-only
-# change instead of editing two runtimes.
-DEFAULT_PLUGINS_FILE = pathlib.Path(BASE_DIR.parent / "stack" / "plugin-defaults.json")
-DEFAULT_PLUGINS = json.loads(DEFAULT_PLUGINS_FILE.read_text())
+# ── Component manifest (default OBS plugins + pinned native binaries) ─────────
+# Pinned release metadata for every component OINK downloads lives in
+# stack/components.json — the SAME file log-server.js reads — so bumping a
+# version is a one-file, data-only change instead of editing multiple runtimes.
+#
+# `plugins[]`: the plugins that ship with every build, installed by the §4c
+# (§4d) host-setup phases and exposed as non-removable entries in the
+# dashboard's plugin manager (download URL, sha256, packaging kind, minimum OBS).
+# `binaries`: MediaMTX and NOALBS pinned GitHub release tarballs (Nginx is apt).
+COMPONENTS_FILE = pathlib.Path(BASE_DIR.parent / "stack" / "components.json")
+DEFAULT_PLUGINS = json.loads(COMPONENTS_FILE.read_text())
+BINARY_PINS = DEFAULT_PLUGINS["binaries"]
 
 
 def _plugin_meta(name: str) -> dict:
@@ -106,7 +109,7 @@ AITUM_MIN_OBS = tuple(DEFAULT_PLUGINS["min_obs"])
 # scene source). These constants identify the canvas and the template file.
 #
 # Single source of truth: the canvas identity/dimensions live in
-# stack/plugin-defaults.json (the SAME manifest log-server.js reads), so the
+# stack/components.json (the SAME manifest log-server.js reads), so the
 # Python setup and the Node control plane can never drift. Falls back to the
 # committed values if the manifest key is absent.
 _VERTICAL_CANVAS_DEFAULTS = {

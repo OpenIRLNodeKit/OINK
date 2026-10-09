@@ -52,7 +52,7 @@ _UNIT_DIR = pathlib.Path("/etc/systemd/system")
 # Files/dirs the native stack consumes; must exist under ~/oink/stack.
 STACK_ARTIFACTS = ("nginx.conf", "ingest.json", "web/build/client", "mediamtx.yml",
                    "noalbs", "noalbs/config.json", "noalbs/.env",
-                   "host-info.json", "plugin-defaults.json", "log-server.js")
+                   "host-info.json", "components.json", "log-server.js")
 
 # TCP/UDP ports gated by the stack phase §6 + the host services (OBS ws, guac
 # tunnel). The dashboard port is resolved at runtime (see status_main).

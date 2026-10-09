@@ -11,6 +11,8 @@
   "plugins": [
     {
       "name": "obs-irl-source",
+      "repo": "irlserver/obs-irl-source",
+      "asset": "^obs-irl-source-.*-linux-x64\\.tar\\.gz$",
       "version": "2.0.0",
       "url": "https://github.com/irlserver/obs-irl-source/releases/download/v2.0.0/obs-irl-source-2.0.0-linux-x64.tar.gz",
       "sha256": "189ba30e54fc610af81c17e1aa33b6add357cf23aa193fe511cb95cf31f09a16",
@@ -19,6 +21,8 @@
     },
     {
       "name": "aitum-multistream",
+      "repo": "Aitum/obs-aitum-multistream",
+      "asset": "^aitum-multistream-linux-gnu\\.deb$",
       "version": "1.0.8",
       "url": "https://github.com/Aitum/obs-aitum-multistream/releases/download/1.0.8/aitum-multistream-linux-gnu.deb",
       "sha256": "08f0e869be80a1c44ca265a3fadfac033c3f4c8d4c7fb1f8d28838b9554d9c6d",
@@ -27,11 +31,31 @@
     },
     {
       "name": "vertical-canvas",
+      "repo": "Aitum/obs-vertical-canvas",
+      "asset": "^vertical-canvas-linux-gnu\\.deb$",
       "version": "1.6.4",
       "url": "https://github.com/Aitum/obs-vertical-canvas/releases/download/1.6.4/vertical-canvas-linux-gnu.deb",
       "sha256": "c982d6acf248f83e7e97d354055e245fa6957b66715f4249b849d913042aaf37",
       "kind": "deb",
       "min_obs": [30, 0]
     }
-  ]
+  ],
+  "binaries": {
+    "mediamtx": {
+      "repo": "bluenviron/mediamtx",
+      "asset": "^mediamtx_.*_linux_amd64\\.tar\\.gz$",
+      "version": "1.20.1",
+      "url": "https://github.com/bluenviron/mediamtx/releases/download/v1.20.1/mediamtx_v1.20.1_linux_amd64.tar.gz",
+      "sha256": "81b143f55a5d23d4a8c028d52869c14ea4a59919900528698fcc97a747fd69c6",
+      "size": "26"
+    },
+    "noalbs": {
+      "repo": "NOALBS/nginx-obs-automatic-low-bitrate-switching",
+      "asset": "^noalbs-.*-x86_64-unknown-linux-musl\\.tar\\.gz$",
+      "version": "2.19.2",
+      "url": "https://github.com/NOALBS/nginx-obs-automatic-low-bitrate-switching/releases/download/v2.19.2/noalbs-v2.19.2-x86_64-unknown-linux-musl.tar.gz",
+      "sha256": "0130175eebfde4b19a7c4514117a19ac554df8cdf4e665c83591fefc83d92184",
+      "size": "8"
+    }
+  }
 }

@@ -10,7 +10,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 
 // Import the pure helper without touching a live OBS: the module reads
-// plugin-defaults.json + host-info.json at load; both exist in stack/.
+// components.json + host-info.json at load; both exist in stack/.
 process.env.OINK_STACK_DIR = require('path').join(__dirname, '..', 'stack');
 const { centeredBoundsTransform, mapIngestControls } = require('./obs-bridge.js');
 

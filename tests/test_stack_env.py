@@ -287,7 +287,7 @@ def test_dry_run_stack_sections_write_nothing(tmp_path, cfg, monkeypatch, capsys
     (repo / "stack/noalbs/config.template").write_text("{}")
     (repo / "stack/noalbs/.env.example").write_text("X=1\n")
     # Data file plugins.js reads from the deployed stack dir — §5 must ship it.
-    (repo / "stack/plugin-defaults.json").write_text('{"plugins": []}\n')
+    (repo / "stack/components.json").write_text('{"plugins": []}\n')
     web = repo / "dashboard"
     (web / "node_modules").mkdir(parents=True)
     (web / "package.json").write_text("{}")
@@ -332,8 +332,33 @@ def test_dry_run_stack_sections_write_nothing(tmp_path, cfg, monkeypatch, capsys
     assert writes == [], f"dry-run wrote: {sorted(set(writes))}"
 
     # §5 must plan to ship the runtime data files, not just the .js modules:
-    # plugin-defaults.json missing from the deployed stack dir silently blinds
+    # components.json missing from the deployed stack dir silently blinds
     # the dashboard's default-plugin status.
     planned = capsys.readouterr().out
     assert "Would copy" in planned
-    assert "plugin-defaults.json" in planned
+    assert "components.json" in planned
+
+
+def test_download_binary_redownloads_when_pin_changes(tmp_path, cfg, monkeypatch):
+    """Bumping the pinned sha256 must force a re-download, not a silent skip."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    name = "mediamtx"
+    (bin_dir / name).write_bytes(b"old-build")
+    old_sha = hashlib.sha256(b"old-build").hexdigest()
+    (bin_dir / f"{name}.sha256").write_text(old_sha + "\n")
+
+    msgs: list[str] = []
+    monkeypatch.setattr(stack, "info", lambda _c, m: msgs.append(m))
+    c = dataclasses.replace(cfg, dry_run=True)
+
+    # Pin unchanged -> skip.
+    stack._download_binary(c, bin_dir, name,
+                           {"version": "1.0", "sha256": old_sha, "url": "u"})
+    assert any("skipping download" in m for m in msgs)
+
+    # Pin bumped to a new sha -> must re-download.
+    msgs.clear()
+    stack._download_binary(c, bin_dir, name,
+                           {"version": "2.0", "sha256": "0" * 64, "url": "u"})
+    assert any("Would download" in m for m in msgs)

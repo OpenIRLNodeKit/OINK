@@ -7,6 +7,7 @@ Single entry point with three subcommands (`oink` is installed as a symlink to
 this file, so the short form works from any directory once setup has run):
 
     sudo oink setup    [-y] [--dry-run]
+    sudo oink upgrade  [--check] [-y]
     sudo oink cleanup  [-y] [--dry-run]
     oink status        [--json]
     sudo oink users    list | reset <user>
@@ -45,6 +46,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import time
 from argparse import Namespace
 from collections.abc import Callable
@@ -53,6 +55,7 @@ import backup
 import cleanup
 import stack
 import status
+import upgrade
 from constants import (
     AITUM_PLUGINS,
     BACKUP_PKGS,
@@ -347,6 +350,25 @@ def cmd_setup(args) -> None:
     raise SystemExit(rc)
 
 
+def _upgrade_install() -> int:
+    """Apply the re-pinned components by re-execing `oink setup -y`, in a child
+    process so constants/stack re-import with the new pins (they are read at
+    import time)."""
+    oink = pathlib.Path(__file__).resolve()
+    return subprocess.call([sys.executable, str(oink), "setup", "-y"])
+
+
+def cmd_upgrade(args) -> None:
+    """Check pinned components against GitHub, then re-pin + reinstall selected."""
+    check_only = getattr(args, "check", False)
+    cfg = SetupConfig.from_args(Namespace(dry_run=False, yes=args.yes, verbose=False))
+    if not check_only and os.geteuid() != 0:
+        bail(cfg, "Run as root (sudo) to install upgrades.")
+    rc = upgrade.upgrade_main(cfg, check_only=check_only, auto_yes=args.yes,
+                              install=_upgrade_install)
+    raise SystemExit(rc)
+
+
 def cmd_cleanup(args) -> None:
     cfg = SetupConfig.from_args(
         Namespace(dry_run=args.dry_run, yes=args.yes)
@@ -460,7 +482,10 @@ def main() -> None:
     )
     ap.add_argument("--version", action="version", version="oink.py 26.09.1")
 
-    sub = ap.add_subparsers(dest="command", required=True, metavar="{setup,cleanup,status,users,backup,restore}")
+    sub = ap.add_subparsers(
+        dest="command", required=True,
+        metavar="{setup,upgrade,cleanup,status,users,backup,restore}",
+    )
 
     # setup ─────────────────────────────────────────────────────────────────────
     p_setup = sub.add_parser(
@@ -545,6 +570,18 @@ def main() -> None:
     p_res.add_argument("--force", action="store_true",
                        help="Restore despite checksum mismatches.")
     p_res.set_defaults(func=cmd_restore)
+
+    # upgrade ───────────────────────────────────────────────────────────────────
+    p_up = sub.add_parser(
+        "upgrade",
+        help="Check pinned components against their GitHub releases; re-pin + reinstall.",
+        parents=[_common],
+    )
+    p_up.add_argument("--check", action="store_true",
+                      help="Only report available updates (read-only, no sudo needed).")
+    p_up.add_argument("-y", "--yes", action="store_true",
+                      help="Upgrade every component with an update, no prompt.")
+    p_up.set_defaults(func=cmd_upgrade)
 
     args = ap.parse_args()
     if getattr(args, "config", None):

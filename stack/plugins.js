@@ -26,11 +26,11 @@ const PLUGIN_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
 
 // Default plugins shipped by the build (installed by oink.py §4c/§4d and
 // reinstallable from this dashboard). Pinned release metadata (url, sha256,
-// packaging kind, min OBS) lives in plugin-defaults.json next to this file —
+// packaging kind, min OBS) lives in components.json next to this file —
 // the SAME file the oink.py setup reads. `probe` names an obs-websocket input
 // kind to prove the plugin loaded (only obs-irl-source registers one).
 const DEFAULT_PLUGINS = (() => {
-  const defaultsPath = path.join(STACK_DIR, 'plugin-defaults.json');
+  const defaultsPath = path.join(STACK_DIR, 'components.json');
   try {
     const raw = JSON.parse(
       fs.readFileSync(defaultsPath, 'utf8'),

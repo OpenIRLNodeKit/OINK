@@ -25,7 +25,7 @@ def _prep(tmp_path, cfg, *, noalbs_unit=True):
         (c.stack_dir / "bin" / b).write_text("x")
     for rel in ("nginx.conf", "ingest.json", "profile.json", "mediamtx.yml",
                 "noalbs/config.json", "noalbs/.env", "host-info.json",
-                "plugin-defaults.json", "log-server.js"):
+                "components.json", "log-server.js"):
         p = c.stack_dir / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("x")

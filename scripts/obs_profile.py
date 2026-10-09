@@ -41,7 +41,7 @@ def _plugin_present(plugin_dir) -> bool:
 
 
 # Marker written next to an installed plugin recording the pinned version it was
-# built from, so `oink setup` can reinstall when plugin-defaults.json bumps.
+# built from, so `oink setup` can reinstall when components.json bumps.
 PLUGIN_VERSION_MARKER = ".oink-version"
 
 

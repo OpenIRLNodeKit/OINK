@@ -32,7 +32,7 @@ import shutil
 import subprocess
 import time
 
-from constants import OINK_LIBEXEC
+from constants import BINARY_PINS, OINK_LIBEXEC
 from logui import C, bail, confirm, info, warn
 from models import SetupConfig
 from process import node_semver, run, run_ok, wait_check
@@ -194,27 +194,6 @@ def _set_env_line(text: str, key: str, value: str) -> str:
     else:
         lines.append(f"{key}={value}")
     return "\n".join(lines) + "\n"
-
-# ── Pinned native binaries (GitHub release tarballs + sha256) ────────────────
-# Nginx is intentionally absent: it is apt-managed (installed here via apt in
-# §5, not a pinned tarball), mirroring how guacd is provisioned.
-
-_BINARIES = {
-    "mediamtx": {
-        "version": "1.20.1",
-        "url": "https://github.com/bluenviron/mediamtx/releases/download/v1.20.1/"
-               "mediamtx_v1.20.1_linux_amd64.tar.gz",
-        "sha256": "81b143f55a5d23d4a8c028d52869c14ea4a59919900528698fcc97a747fd69c6",
-        "size": "26",
-    },
-    "noalbs": {
-        "version": "2.19.2",
-        "url": "https://github.com/NOALBS/nginx-obs-automatic-low-bitrate-switching/"
-               "releases/download/v2.19.2/noalbs-v2.19.2-x86_64-unknown-linux-musl.tar.gz",
-        "sha256": "0130175eebfde4b19a7c4514117a19ac554df8cdf4e665c83591fefc83d92184",
-        "size": "8",
-    },
-}
 
 # ── Sections ──────────────────────────────────────────────────────────────────
 
@@ -599,8 +578,10 @@ def _download_binary(cfg: SetupConfig, bin_dir: pathlib.Path,
     exe = bin_dir / name
     marker = bin_dir / f"{name}.sha256"
 
-    if exe.exists() and marker.exists() and marker.read_text().strip() == _sha256_file(exe):
-        info(cfg, f"  → {name} already present and verified, skipping download")
+    # Skip only when the installed file matches the *pinned* sha256 — so bumping
+    # the pin in stack/components.json forces a re-download.
+    if exe.exists() and _sha256_file(exe) == meta["sha256"]:
+        info(cfg, f"  → {name} {meta['version']} already present and verified, skipping download")
         return
     if cfg.dry_run:
         info(cfg, f"  → Would download {name} from {meta['url']}")
@@ -679,7 +660,7 @@ def section5_install_stack(cfg: SetupConfig) -> None:
 
     # ── Binaries ──────────────────────────────────────────────────────────────
     for name in ("mediamtx", "noalbs"):
-        _download_binary(cfg, bin_dir, name, _BINARIES[name])
+        _download_binary(cfg, bin_dir, name, BINARY_PINS[name])
 
     # ── Nginx (apt) ──────────────────────────────────────────────────────────
     # Nginx is installed in §1 with the other base packages. The distro ships
@@ -697,7 +678,7 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     # ── host-info.json (NVENC availability + pinned binary versions) ────────
     host_info = {
         "hasNvenc": _detect_nvenc(cfg),
-        "versions": {name: meta["version"] for name, meta in _BINARIES.items()},
+        "versions": {name: meta["version"] for name, meta in BINARY_PINS.items()},
     }
     host_info_dst = stack_home / "host-info.json"
     if cfg.dry_run:
@@ -712,7 +693,7 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     force_restart: set[str] = set()
     api_changed = False
     guac_modules_changed = False
-    # Ship non-test .js + .json data files (plugins.js reads plugin-defaults.json
+    # Ship non-test .js + .json data files (plugins.js reads components.json
     # from the deployed stack dir); rendered configs/noalbs have their own steps.
     srcs = [p.name for p in sorted(_STACK_DIR.iterdir())
             if (p.suffix == ".js" and not p.name.endswith(".test.js"))

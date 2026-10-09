@@ -318,7 +318,7 @@ def section_obs_irl_source(cfg: SetupConfig, state: HostState) -> Result:
     v2.0.0 resolves libobs symbols from the OBS process at load time and is
     built against glibc 2.35, so the prebuilt tarball loads on Ubuntu 24.04
     (and the OBS Flatpak). It requires OBS >= 32.1. The plugin metadata
-    (pinned release URL + sha256, min OBS) comes from stack/plugin-defaults.json.
+    (pinned release URL + sha256, min OBS) comes from stack/components.json.
     """
     info(cfg, f"{Phase.OBS_IRL_SOURCE.section_marker}  Installing obs-irl-source plugin (default)…")
 
@@ -397,7 +397,7 @@ def section_aitum_plugins(cfg: SetupConfig, state: HostState) -> Result:
     onto OBS's per-user plugin dir: ~/.config/obs-studio/plugins/<name>/{bin/64bit,data}.
 
     The Aitum pair requires OBS >= 30 (guarded below). Metadata (pinned release
-    URL + sha256, min OBS) comes from stack/plugin-defaults.json. As defaults of
+    URL + sha256, min OBS) comes from stack/components.json. As defaults of
     the build, a failed download/checksum/extract ABORTS the setup (bail) rather
     than degrading the node.
     """

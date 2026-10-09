@@ -24,10 +24,10 @@ const OBS_WS_PORT = 4455;
 const CANVAS_W = 1920;
 const CANVAS_H = 1080;
 // Single source of truth: canvas identity/dimensions live in the same
-// plugin-defaults.json manifest the Python setup reads, so the two runtimes can
+// components.json manifest the Python setup reads, so the two runtimes can
 // never drift. Falls back to the committed values if the manifest key is absent.
 const VERTICAL_CANVAS = (() => {
-  const defaultsPath = path.join(STACK_DIR, 'plugin-defaults.json');
+  const defaultsPath = path.join(STACK_DIR, 'components.json');
   try {
     const raw = JSON.parse(fs.readFileSync(defaultsPath, 'utf8'));
     return raw.vertical_canvas || {};
