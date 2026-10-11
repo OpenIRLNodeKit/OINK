@@ -31,6 +31,7 @@ from constants import (
     OINK_GROUP,
     OINK_LIBEXEC,
     SECURITY_PKGS,
+    SRTLA_BUILD_PKGS,
     TAR_PKGS,
     X11_PKGS,
 )
@@ -59,7 +60,8 @@ def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
     obs_installed = run_ok(cfg, "dpkg", "-s", "obs-studio")
     node_ok = _node_22_ok(cfg)
     key_pkgs = (list(BASE_PKGS) + list(GUAC_PKGS) + list(NGINX_PKGS) + list(OBS_PKGS)
-                + list(TAR_PKGS) + list(SECURITY_PKGS) + list(BACKUP_PKGS))
+                + list(TAR_PKGS) + list(SECURITY_PKGS) + list(BACKUP_PKGS)
+                + list(SRTLA_BUILD_PKGS))
     all_installed = all(run_ok(cfg, "dpkg", "-s", p) for p in key_pkgs) and node_ok
     if all_installed:
         info(cfg, "  → Base packages already installed, skipping apt-get")

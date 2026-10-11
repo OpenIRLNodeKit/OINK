@@ -362,3 +362,36 @@ def test_download_binary_redownloads_when_pin_changes(tmp_path, cfg, monkeypatch
     stack._download_binary(c, bin_dir, name,
                            {"version": "2.0", "sha256": "0" * 64, "url": "u"})
     assert any("Would download" in m for m in msgs)
+
+
+def test_build_srtla_rec_dry_run_plans_without_writing(tmp_path, cfg, monkeypatch):
+    msgs: list[str] = []
+    monkeypatch.setattr(stack, "info", lambda _c, m: msgs.append(m))
+    c = dataclasses.replace(cfg, dry_run=True)
+    stack._build_srtla_rec(c, tmp_path)
+    assert any("Would build" in m for m in msgs)
+    assert not (tmp_path / stack.SRTLA_BIN).exists()
+
+
+def test_build_srtla_rec_skips_when_commit_matches(tmp_path, cfg, monkeypatch):
+    exe = tmp_path / stack.SRTLA_BIN
+    exe.write_bytes(b"x")
+    (tmp_path / f"{stack.SRTLA_BIN}.version").write_text(stack.SRTLA_COMMIT + "\n")
+    calls: list[tuple] = []
+    monkeypatch.setattr(stack, "run", lambda *a, **k: calls.append(a))
+    msgs: list[str] = []
+    monkeypatch.setattr(stack, "info", lambda _c, m: msgs.append(m))
+    stack._build_srtla_rec(dataclasses.replace(cfg, auto_yes=True), tmp_path)
+    assert calls == []
+    assert any("already built" in m for m in msgs)
+
+
+def test_build_srtla_rec_plans_rebuild_on_different_pin(tmp_path, cfg, monkeypatch):
+    exe = tmp_path / stack.SRTLA_BIN
+    exe.write_bytes(b"x")
+    (tmp_path / f"{stack.SRTLA_BIN}.version").write_text("0123456789ab\n")
+    msgs: list[str] = []
+    monkeypatch.setattr(stack, "info", lambda _c, m: msgs.append(m))
+    c = dataclasses.replace(cfg, dry_run=True)
+    stack._build_srtla_rec(c, tmp_path)
+    assert any("Would build" in m for m in msgs)

@@ -84,6 +84,14 @@ test.describe('Ingest', () => {
       `publish:${PATH}`,
     );
 
+    await expect(page.getByLabel('SRTLA server address')).toHaveValue(
+      '127.0.0.1',
+    );
+    await expect(page.getByLabel('SRTLA port')).toHaveValue('5000');
+    await expect(page.getByLabel('SRT streamid')).toHaveValue(
+      `publish:${PATH}`,
+    );
+
     await expect(page.getByText('IRLwhatever', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Show QR' })).toHaveCount(3);
     await page.getByRole('button', { name: 'Show QR' }).last().click();

@@ -15,6 +15,7 @@ function rows(v: VersionsInfo): { label: string; value: string }[] {
     { label: 'obs-websocket', value: val(v.obsWebSocket) },
     { label: 'MediaMTX', value: val(v.mediamtx) },
     { label: 'NOALBS', value: val(v.noalbs) },
+    { label: 'SRTLA receiver', value: val(v.srtlaRec) },
     ...v.plugins.map((p) => ({
       label: p.name,
       value: `${p.version}${p.installed ? '' : ' (not installed)'}`,

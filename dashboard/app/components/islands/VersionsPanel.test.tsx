@@ -26,6 +26,7 @@ const VERSIONS = {
   obsWebSocket: '5.5.6',
   mediamtx: '1.20.1',
   noalbs: '2.19.2',
+  srtlaRec: '7fa6985',
   plugins: [
     { name: 'obs-irl-source', version: '2.0.0', installed: true, loaded: true },
     { name: 'aitum-multistream', version: '1.0.8', installed: true, loaded: false },
@@ -52,6 +53,8 @@ describe('VersionsPanel', () => {
     expect(screen.getByText('32.1.1')).toBeInTheDocument();
     expect(screen.getByText('MediaMTX')).toBeInTheDocument();
     expect(screen.getByText('NOALBS')).toBeInTheDocument();
+    expect(screen.getByText('SRTLA receiver')).toBeInTheDocument();
+    expect(screen.getByText('7fa6985')).toBeInTheDocument();
     expect(screen.getByText('obs-irl-source')).toBeInTheDocument();
     expect(screen.getByText('2.0.0')).toBeInTheDocument();
   });

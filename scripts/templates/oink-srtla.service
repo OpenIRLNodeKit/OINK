@@ -1,0 +1,14 @@
+[Unit]
+Description=OINK SRTLA receiver (bonded BELABOX/Moblin ingest -> MediaMTX SRT)
+After=network-online.target oink-mediamtx.service
+Wants=network-online.target
+
+[Service]
+User=$OINK_USER
+WorkingDirectory=$STACK_DIR
+ExecStart=$STACK_DIR/bin/srtla_rec --srtla_port 5000 --srt_hostname 127.0.0.1 --srt_port 8890 --metrics_port 9191 --metrics_bind 127.0.0.1 --log_level info
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

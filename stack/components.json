@@ -56,6 +56,12 @@
       "url": "https://github.com/NOALBS/nginx-obs-automatic-low-bitrate-switching/releases/download/v2.19.2/noalbs-v2.19.2-x86_64-unknown-linux-musl.tar.gz",
       "sha256": "0130175eebfde4b19a7c4514117a19ac554df8cdf4e665c83591fefc83d92184",
       "size": "8"
+    },
+    "srtla_rec": {
+      "repo": "irlserver/srtla",
+      "commit": "7fa6985dedd5028b8939e2ac3b32136ca7ad8d4c",
+      "version": "7fa6985",
+      "kind": "source"
     }
   }
 }

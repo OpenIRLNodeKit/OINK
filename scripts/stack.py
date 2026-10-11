@@ -5,7 +5,8 @@
 web dashboard, API, MediaMTX ingest, NOALBS scene switcher, and Nginx reverse
 proxy as native systemd units. Nginx is distro-managed (apt `nginx`, like
 guacd); MediaMTX and NOALBS are pinned GitHub release tarballs verified by
-sha256 and installed under ~/oink/stack/bin.
+sha256, and the SRTLA receiver (srtla_rec) is built from a pinned source commit
+(no upstream release) — all installed under ~/oink/stack/bin.
 
 Runs after `oink setup`'s host phase (see oink.py) from a repo checkout (needs
 dashboard/, stack/, Node >= 22.12.0); the host phase guarantees guacd, VNC, and
@@ -32,7 +33,14 @@ import shutil
 import subprocess
 import time
 
-from constants import BINARY_PINS, OINK_LIBEXEC
+from constants import (
+    BINARY_PINS,
+    OINK_LIBEXEC,
+    SRTLA_BIN,
+    SRTLA_COMMIT,
+    SRTLA_PORT,
+    SRTLA_REPO,
+)
 from logui import C, bail, confirm, info, warn
 from models import SetupConfig
 from process import node_semver, run, run_ok, wait_check
@@ -50,7 +58,7 @@ _WEB_DIR = _REPO_ROOT / "dashboard"
 # also covers every port the native stack itself binds.
 
 WEB_PORT_DEFAULT = 8305
-STACK_RESERVED_PORTS = {80, 443, 1935, 8080, 8081, 8082, 8890}
+STACK_RESERVED_PORTS = {80, 443, 1935, 8080, 8081, 8082, 8890, SRTLA_PORT}
 
 # Reserved ingest label: the default monitored feed (NOALBS watches it), the
 # statically declared media path, and a non-deletable profile. Was `stream`.
@@ -623,6 +631,70 @@ def _download_binary(cfg: SetupConfig, bin_dir: pathlib.Path,
     info(cfg, f"  → Installed {name} → {exe} (sha256 verified)")
 
 
+# ── SRTLA receiver (built from source) ────────────────────────────────────────
+
+def _srtla_version_marker(bin_dir: pathlib.Path) -> pathlib.Path:
+    return bin_dir / f"{SRTLA_BIN}.version"
+
+
+def _build_srtla_rec(cfg: SetupConfig, bin_dir: pathlib.Path) -> None:
+    """Build srtla_rec from source and install it into bin_dir.
+
+    irlserver/srtla ships no release tarball, so unlike MediaMTX/NOALBS this is
+    a git + cmake build (deps: git, cmake, build-essential; spdlog is fetched by
+    CMake). Idempotent: skips when the installed binary already matches the
+    pinned commit. Only the receiver target is built — upstream `srtla_send`
+    has an assert-in-NDEBUG bug, and OINK never runs it.
+    """
+    exe = bin_dir / SRTLA_BIN
+    marker = _srtla_version_marker(bin_dir)
+    if exe.exists() and marker.exists() and marker.read_text().strip() == SRTLA_COMMIT:
+        info(cfg, f"  → {SRTLA_BIN} {SRTLA_COMMIT[:12]} already built, skipping")
+        return
+    if cfg.dry_run:
+        info(cfg, f"  → Would build {SRTLA_BIN} from {SRTLA_REPO} @ {SRTLA_COMMIT[:12]}")
+        return
+
+    if not confirm(cfg, f"Build {SRTLA_BIN} from source ({SRTLA_REPO} @ {SRTLA_COMMIT[:12]})?"):
+        info(cfg, f"  → Skipping {SRTLA_BIN} build")
+        return
+
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    work = bin_dir / ".srtla-build"
+    if work.exists():
+        shutil.rmtree(work)
+    src_dir = work / "src"
+    build_dir = work / "build"
+    src_dir.parent.mkdir(parents=True, exist_ok=True)
+    build_dir.mkdir(parents=True)
+    info(cfg, f"  → Cloning {SRTLA_REPO} @ {SRTLA_COMMIT[:12]}…")
+    run(cfg, "git", "clone", "--recursive", SRTLA_REPO, str(src_dir))
+    run(cfg, "git", "-C", str(src_dir), "checkout", "--quiet", SRTLA_COMMIT)
+    run(cfg, "git", "-C", str(src_dir), "submodule", "update", "--init", "--recursive")
+    info(cfg, f"  → Building {SRTLA_BIN} (cmake)…")
+    run(cfg, "cmake", "-S", str(src_dir), "-B", str(build_dir),
+        "-DCMAKE_BUILD_TYPE=RelWithDebInfo")
+    run(cfg, "cmake", "--build", str(build_dir), "--target", SRTLA_BIN,
+        "-j", str(os.cpu_count() or 2))
+    src = _find_binary_file(build_dir, SRTLA_BIN)
+    if src is None:
+        shutil.rmtree(work, ignore_errors=True)
+        bail(cfg, f"build did not produce the {SRTLA_BIN} binary")
+    exe.write_bytes(src.read_bytes())
+    exe.chmod(0o755)
+    marker.write_text(SRTLA_COMMIT + "\n")
+    shutil.rmtree(work, ignore_errors=True)
+    info(cfg, f"  → Installed {SRTLA_BIN} → {exe} (built from {SRTLA_COMMIT[:12]})")
+
+
+def _srtla_version(bin_dir: pathlib.Path) -> str:
+    """Installed srtla_rec's pinned commit (short), for host-info.json."""
+    try:
+        return _srtla_version_marker(bin_dir).read_text().strip()[:12]
+    except OSError:
+        return SRTLA_COMMIT[:12]
+
+
 # ── Native systemd units ──────────────────────────────────────────────────────
 
 def _render_unit(cfg: SetupConfig, template_name: str) -> str:
@@ -662,6 +734,9 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     for name in ("mediamtx", "noalbs"):
         _download_binary(cfg, bin_dir, name, BINARY_PINS[name])
 
+    # ── SRTLA receiver (built from source; no upstream release tarball) ────────
+    _build_srtla_rec(cfg, bin_dir)
+
     # ── Nginx (apt) ──────────────────────────────────────────────────────────
     # Nginx is installed in §1 with the other base packages. The distro ships
     # its own nginx.service bound to the packaged /etc/nginx.conf and enables
@@ -678,7 +753,10 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     # ── host-info.json (NVENC availability + pinned binary versions) ────────
     host_info = {
         "hasNvenc": _detect_nvenc(cfg),
-        "versions": {name: meta["version"] for name, meta in BINARY_PINS.items()},
+        "versions": {
+            **{name: meta["version"] for name, meta in BINARY_PINS.items()},
+            SRTLA_BIN: _srtla_version(bin_dir),
+        },
     }
     host_info_dst = stack_home / "host-info.json"
     if cfg.dry_run:
@@ -882,6 +960,7 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     units = [
         {"name": "oink-nginx", "template": "oink-nginx.service"},
         {"name": "oink-mediamtx", "template": "oink-mediamtx.service"},
+        {"name": "oink-srtla", "template": "oink-srtla.service"},
         {"name": "oink-noalbs", "template": "oink-noalbs.service"},
         {"name": "oink-api", "template": "oink-api.service"},
     ]
@@ -986,6 +1065,9 @@ def section6_verify(cfg: SetupConfig) -> None:
     check("oink-mediamtx active", "systemctl is-active oink-mediamtx")
     check("RTMP ingest on :1935", "ss -ltn | grep -q ':1935'")
     check("SRT ingest on :8890", "ss -uln | grep -q ':8890'")
+
+    check("oink-srtla active", "systemctl is-active oink-srtla")
+    check(f"SRTLA ingest on :{SRTLA_PORT}", f"ss -uln | grep -q ':{SRTLA_PORT}'")
 
     check("oink-noalbs installed (off by default)",
           "[ -f /etc/systemd/system/oink-noalbs.service ] && systemctl is-enabled oink-noalbs | grep -q disabled")

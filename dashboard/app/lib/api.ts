@@ -313,6 +313,7 @@ export interface VersionsInfo {
   obsWebSocket: string | null;
   mediamtx: string | null;
   noalbs: string | null;
+  srtlaRec: string | null;
   plugins: VersionPlugin[];
   node: string;
   os: string;
@@ -332,6 +333,7 @@ export async function getVersions(): Promise<VersionsInfo> {
     obsWebSocket: data.obsWebSocket ?? null,
     mediamtx: data.mediamtx ?? null,
     noalbs: data.noalbs ?? null,
+    srtlaRec: data.srtlaRec ?? null,
     plugins: data.plugins ?? [],
     node: data.node ?? '',
     os: data.os ?? '',

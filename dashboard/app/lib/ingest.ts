@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 export const SRT_PORT = 8890;
+export const SRTLA_PORT = 5000;
 export const RTMP_PORT = 1935;
 export const RTSP_PORT = 8554;
 
@@ -45,8 +46,30 @@ export function generateSrtlaUrl(
   key: string,
   label: string,
 ): string {
-  // Standard SRT stream-id syntax (used by BelaBox / SRTLA hardware).
-  return `srt://${host}:${SRT_PORT}?streamid=#!::m=publish,r=${canonicalIngestPath(key, label)}`;
+  // BELABOX/Moblin bond modems with the SRTLA protocol to the oink-srtla
+  // receiver on :5000, which forwards the reassembled SRT stream to MediaMTX
+  // on :8890. The streamid keeps the keyed path so MediaMTX still gates access.
+  return `srtla://${host}:${SRTLA_PORT}?streamid=publish:${canonicalIngestPath(key, label)}`;
+}
+
+// BELABOX splits SRTLA config across three boxes instead of one URL: the relay
+// address/port (oink-srtla, UDP :5000) and the SRT streamid for MediaMTX.
+export interface SrtlaDetails {
+  serverAddress: string;
+  port: string;
+  streamId: string;
+}
+
+export function generateSrtlaDetails(
+  host: string,
+  key: string,
+  label: string,
+): SrtlaDetails {
+  return {
+    serverAddress: host,
+    port: String(SRTLA_PORT),
+    streamId: `publish:${canonicalIngestPath(key, label)}`,
+  };
 }
 
 export function generateIngestUrls(

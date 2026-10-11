@@ -13,7 +13,8 @@
 #   * RTMP  rtmp://host:1935/live/<key>/<label>
 #   * SRT   srt://host:8890?streamid=publish:live/<key>/<label>
 #           srt://host:8890?streamid=read:live/<key>/<label>   (OBS pulls)
-#   * SRTLA #!::m=publish,r=live/<key>/<label>
+#   * SRTLA srtla://host:5000?streamid=publish:live/<key>/<label>
+#           (oink-srtla receiver: de-bonds the SRTLA link, forwards SRT here)
 # Any other path is refused: the internal-auth grant below scopes publish/read
 # to the keyed namespace (regex via `~`), and there is no `all_others` entry, so
 # a client that guesses a different path gets "path not configured".

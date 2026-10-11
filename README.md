@@ -57,6 +57,7 @@ A few notes:
 | Remote OBS (full UI) | `http://<YOUR-IP>:8081` (sign in to the dashboard first) |
 | RTMP ingest | `rtmp://<YOUR-IP>:1935/live/{stream_key}/{label}` |
 | SRT ingest | `srt://<YOUR-IP>:8890?streamid=publish:live/{stream_key}/{label}` |
+| SRTLA ingest (BELABOX/Moblin) | `srtla://<YOUR-IP>:5000?streamid=publish:live/{stream_key}/{label}` |
 
 The one-time **admin password is printed at the end of setup** — change it on first login. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
 

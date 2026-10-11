@@ -60,7 +60,7 @@ from process import run
 # part of this list)
 SYSTEMD_UNITS = [
     "oink-display", "oink-obs", "oink-firewall", "oink-vnc", "oink-guac",
-    "oink-nginx", "oink-mediamtx", "oink-noalbs", "oink-api",
+    "oink-nginx", "oink-mediamtx", "oink-srtla", "oink-noalbs", "oink-api",
 ]
 BIN_SCRIPTS = [
     "/usr/local/bin/oink",

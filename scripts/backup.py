@@ -47,7 +47,7 @@ _ROOT_ATTR = {"stack": "stack_dir", "obs": "obs_cfg",
 
 # Units that must not be mid-write while their files are swapped; restarted only
 # if they were active before the restore.
-_UNITS = ("oink-obs", "oink-api", "oink-noalbs", "oink-mediamtx", "oink-guac")
+_UNITS = ("oink-obs", "oink-api", "oink-noalbs", "oink-mediamtx", "oink-srtla", "oink-guac")
 
 
 def _load_set(include_toggles: set[str] | None = None) -> list[dict]:

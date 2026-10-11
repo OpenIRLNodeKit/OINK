@@ -27,6 +27,19 @@ VNC_PORT = 5900
 TUNNEL_PORT = 8080
 CLIENT_PORT = 8081
 
+# SRTLA receiver (oink-srtla). BELABOX/Moblin/IRL Pro bond multiple modems with
+# the SRTLA protocol, which MediaMTX does not speak: srtla_rec de-bonds the
+# links and forwards reassembled SRT to MediaMTX on :8890, where the keyed
+# streamid still gates access. There is no upstream release tarball, so it is
+# built from source at setup and pinned to a commit (see stack.py §5).
+SRTLA_PORT = 5000
+SRTLA_METRICS_PORT = 9191
+SRTLA_BIN = "srtla_rec"
+# Build toolchain srtla_rec needs (no upstream release; built at setup §5).
+# Tracked separately so the §1 apt gate (§1 base packages) sees it as a
+# key package and re-runs apt on hosts that skip the pass otherwise.
+SRTLA_BUILD_PKGS = ("cmake", "build-essential")
+
 # Display
 DUMMY_DISPLAY = ":99"
 
@@ -42,6 +55,8 @@ BACKUP_PKGS = ["zip", "unzip"]
 COMMON_PKGS = [
     "ffmpeg", "curl", "ca-certificates", "git", "gnupg", "openssl",
     "fonts-dejavu-core", "xdotool", "python3-websocket",
+    # SRTLA receiver build toolchain (stack §5 builds srtla_rec from source).
+    *SRTLA_BUILD_PKGS,
     # GPU driver detection (nvidia-smi / ubuntu-drivers) for the dashboard's
     # encoder probe.
     "ubuntu-drivers-common",
@@ -84,10 +99,18 @@ MIN_VERSIONS = {"ubuntu": "24.04"}
 # `plugins[]`: the plugins that ship with every build, installed by the §4c
 # (§4d) host-setup phases and exposed as non-removable entries in the
 # dashboard's plugin manager (download URL, sha256, packaging kind, minimum OBS).
-# `binaries`: MediaMTX and NOALBS pinned GitHub release tarballs (Nginx is apt).
+# `binaries`: MediaMTX and NOALBS pinned GitHub release tarballs (Nginx is apt);
+# srtla_rec is `kind: source` — git-built from a pinned commit, no release asset.
 COMPONENTS_FILE = pathlib.Path(BASE_DIR.parent / "stack" / "components.json")
 DEFAULT_PLUGINS = json.loads(COMPONENTS_FILE.read_text())
 BINARY_PINS = DEFAULT_PLUGINS["binaries"]
+
+# SRTLA receiver pin (repo + commit), declared in stack/components.json like
+# every component. `kind: source` means stack §5 builds it from the commit —
+# `oink upgrade` reports it as pinned and never queries GitHub releases.
+SRTLA_META = BINARY_PINS[SRTLA_BIN]
+SRTLA_REPO = f"https://github.com/{SRTLA_META['repo']}"
+SRTLA_COMMIT = SRTLA_META["commit"]
 
 
 def _plugin_meta(name: str) -> dict:

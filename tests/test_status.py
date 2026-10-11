@@ -21,7 +21,7 @@ def _prep(tmp_path, cfg, *, noalbs_unit=True):
     """Relocate all of status's filesystem checks under tmp_path."""
     c = dataclasses.replace(cfg, stack_dir=tmp_path / "stack")
     (c.stack_dir / "bin").mkdir(parents=True)
-    for b in ("mediamtx", "noalbs"):
+    for b in status.NATIVE_BINS:
         (c.stack_dir / "bin" / b).write_text("x")
     for rel in ("nginx.conf", "ingest.json", "profile.json", "mediamtx.yml",
                 "noalbs/config.json", "noalbs/.env", "host-info.json",

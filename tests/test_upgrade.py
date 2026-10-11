@@ -19,6 +19,36 @@ def test_semver_and_is_newer():
     assert not upgrade.is_newer("1.0.8", "1.0.8")
 
 
+def test_srtla_rec_is_a_pinned_source_component_not_a_release():
+    # srtla_rec lives in components.json "binaries" like mediamtx/noalbs, but
+    # kind:"source" — git-built from a pinned commit, no release asset.
+    meta = upgrade.DEFAULT_PLUGINS["binaries"]["srtla_rec"]
+    assert meta["kind"] == "source"
+    assert "commit" in meta
+    assert "url" not in meta and "sha256" not in meta
+
+
+def test_source_built_component_is_informational_not_updatable(monkeypatch):
+    # collect() must report a source-built component as current/pinned — no
+    # GitHub releases fetch, never an error row — and selection must never
+    # offer it for download.
+    src = {"repo": "irlserver/srtla",
+           "commit": "7fa6985dedd5028b8939e2ac3b32136ca7ad8d4c",
+           "version": "7fa6985", "kind": "source"}
+    monkeypatch.setattr(
+        upgrade, "DEFAULT_PLUGINS",
+        {"binaries": {"srtla_rec": src}, "plugins": []})
+    calls: list[dict] = []
+    monkeypatch.setattr(upgrade, "_fetch_latest", lambda meta: calls.append(meta))
+    rows = upgrade.collect()
+    row = next(r for r in rows if r["name"] == "srtla_rec")
+    assert row["status"] == "current"
+    assert row["url"] == "" and row["sha256"] == ""
+    assert "pinned source build" in row["detail"]
+    assert calls == []  # never hit the GitHub releases API
+    assert upgrade.select(rows, auto_yes=True) == []
+
+
 def test_fetch_latest_matches_asset_and_parses_digest(monkeypatch):
     release = {
         "tag_name": "v1.21.2",

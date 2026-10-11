@@ -92,6 +92,15 @@ def collect() -> list[dict]:
     for kind, name, meta in components:
         row = {"kind": kind, "name": name, "current": meta.get("version", ""),
                "latest": "", "url": "", "sha256": "", "status": "error", "detail": ""}
+        if meta.get("kind") == "source":
+            # git-built from a pinned commit — no release channel, nothing to
+            # fetch. Report as current/pinned so `oink upgrade --check` never
+            # drops a false "check failed" row for it.
+            row["status"] = "current"
+            row["detail"] = (f"pinned source build @ {str(meta.get('commit', ''))[:7]}"
+                             " — no release channel; bump the commit in components.json")
+            rows.append(row)
+            continue
         if not meta.get("repo") or not meta.get("asset"):
             row["detail"] = "no repo/asset metadata"
             rows.append(row)

@@ -19,6 +19,7 @@ import {
   generateIngestUrls,
   generateLiveUDetails,
   generateObsReadUrl,
+  generateSrtlaDetails,
   INGEST_RESERVED_LABEL,
 } from '../../lib/ingest';
 import type { IngestInfo } from '../../lib/types';
@@ -119,6 +120,11 @@ export default function IngestManager() {
 
   const liveU = useMemo(
     () => (host && key ? generateLiveUDetails(host, key, named) : null),
+    [host, key, named],
+  );
+
+  const srtla = useMemo(
+    () => (host && key ? generateSrtlaDetails(host, key, named) : null),
     [host, key, named],
   );
 
@@ -410,6 +416,15 @@ export default function IngestManager() {
             hint="BelaBox"
             value={urls?.srtla ?? ''}
             disabled={!active}
+            details={
+              srtla
+                ? [
+                    { label: 'SRTLA server address', value: srtla.serverAddress, secret: true },
+                    { label: 'SRTLA port', value: srtla.port },
+                    { label: 'SRT streamid', value: srtla.streamId, secret: true },
+                  ]
+                : undefined
+            }
           />
         </div>
 

@@ -11,10 +11,12 @@ import {
   generateMoblinUrl,
   generateObsReadUrl,
   generateRtmpUrl,
+  generateSrtlaDetails,
   generateSrtlaUrl,
   generateSrtUrl,
   RTMP_PORT,
   SRT_PORT,
+  SRTLA_PORT,
 } from './ingest';
 
 describe('ingest URL generators', () => {
@@ -39,17 +41,26 @@ describe('ingest URL generators', () => {
     );
   });
 
-  it('generates an SRTLA URL using standard stream-id syntax on the keyed path', () => {
+  it('generates an SRTLA URL pointing at the receiver with the keyed streamid', () => {
     expect(generateSrtlaUrl(host, key, label)).toBe(
-      `srt://${host}:${SRT_PORT}?streamid=#!::m=publish,r=${path}`,
+      `srtla://${host}:${SRTLA_PORT}?streamid=publish:${path}`,
     );
+  });
+
+  it('splits SRTLA (BelaBox) config into server address, port, and stream id', () => {
+    expect(generateSrtlaDetails(host, key, label)).toEqual({
+      serverAddress: host,
+      port: `${SRTLA_PORT}`,
+      streamId: `publish:${path}`,
+    });
   });
 
   it('produces all protocol URLs with the identical keyed path', () => {
     const urls = generateIngestUrls(host, key, label);
     expect(urls.rtmp).toContain(`/${path}`);
     expect(urls.srt).toBe(urls.srtLiveU);
-    expect(urls.srtla).toContain(`r=${path}`);
+    expect(urls.srtla).toContain(`publish:${path}`);
+    expect(urls.srtla).toContain(`srtla://${host}:${SRTLA_PORT}`);
     for (const u of [urls.rtmp, urls.srt, urls.srtLiveU, urls.srtla]) {
       expect(u).toContain(key);
     }

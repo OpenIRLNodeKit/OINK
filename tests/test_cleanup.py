@@ -14,7 +14,7 @@ def test_bin_scripts_are_exact_current_set():
 def test_systemd_units_include_stack_units():
     assert cleanup.SYSTEMD_UNITS == [
         "oink-display", "oink-obs", "oink-firewall", "oink-vnc", "oink-guac",
-        "oink-nginx", "oink-mediamtx", "oink-noalbs", "oink-api",
+        "oink-nginx", "oink-mediamtx", "oink-srtla", "oink-noalbs", "oink-api",
     ]
 
 

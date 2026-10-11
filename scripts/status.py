@@ -36,13 +36,14 @@ UNITS = (
     ("oink-guac", "host"),
     ("oink-nginx", "stack"),  # distro apt `nginx` binary; unit reads stack nginx.conf
     ("oink-mediamtx", "stack"),
+    ("oink-srtla", "stack"),
     ("oink-noalbs", "stack"),
     ("oink-api", "stack"),
 )
 
 # Pinned binaries the stack phase installs (relative to ~/oink/stack/bin).
 # Nginx is deliberately absent: it is distro apt-managed (like guacd).
-NATIVE_BINS = ("mediamtx", "noalbs")
+NATIVE_BINS = ("mediamtx", "srtla_rec", "noalbs")
 
 # Units that are healthy while off — installed by default but stopped until the
 # dashboard toggle starts them. Only their unit file has to exist.
@@ -56,7 +57,7 @@ STACK_ARTIFACTS = ("nginx.conf", "ingest.json", "web/build/client", "mediamtx.ym
 
 # TCP/UDP ports gated by the stack phase §6 + the host services (OBS ws, guac
 # tunnel). The dashboard port is resolved at runtime (see status_main).
-ENDPOINT_PORTS = (("tcp", 1935), ("udp", 8890),
+ENDPOINT_PORTS = (("tcp", 1935), ("udp", 8890), ("udp", 5000),
                   ("tcp", 9997), ("tcp", 8082), ("tcp", 4822))
 HOST_PORTS = (("tcp", 4455), ("tcp", 8080), ("tcp", 8081))
 
