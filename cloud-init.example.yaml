@@ -44,8 +44,69 @@ write_files:
       export OINK_TWITCH_BOT_USERNAME=
       export OINK_TWITCH_BOT_OAUTH=oauth:
 
+# Refresh apt lists once before the packages below are installed.
+package_update: true
+# Do NOT set package_upgrade: cloud-init runs `apt-get dist-upgrade`, which
+# installs a new kernel the running box is not on yet; OINK then provisions
+# v4l2loopback against the old running kernel and the virtual camera breaks on
+# the next reboot (see scripts/sections.py §1).
+#
+# Third-party apt sources, added by cloud-init's apt module (config stage, so
+# they exist before `packages:` installs in the final stage). Mirrors the repos
+# scripts/sections.py §1 adds, so `oink setup` finds everything installed and
+# skips its own apt pass. Keys are fetched from keyserver.ubuntu.com.
+apt:
+  sources:
+    obs-studio:
+      source: "deb [signed-by=$KEY_FILE] https://ppa.launchpadcontent.net/obsproject/obs-studio/ubuntu $RELEASE main"
+      keyid: BC7345F522079769F5BBE987EFC71127F425E228
+      keyserver: keyserver.ubuntu.com
+    nodesource:
+      source: "deb [signed-by=$KEY_FILE] https://deb.nodesource.com/node_22.x nodistro main"
+      keyid: 6F71F525282841EEDAF851B42F59B5F99B1BE0B4
+      keyserver: keyserver.ubuntu.com
+
+# Keep this list in sync with scripts/constants.py.
 packages:
+  # Base / tooling
   - git
+  - curl
+  - ca-certificates
+  - gnupg
+  - openssl
+  # Display / VNC
+  - xserver-xorg-core
+  - xserver-xorg-video-dummy
+  - x11-xserver-utils
+  - x11-utils
+  - x11vnc
+  # Media / runtime
+  - ffmpeg
+  - fonts-dejavu-core
+  - xdotool
+  - python3-websocket
+  - ubuntu-drivers-common
+  # SRTLA receiver build toolchain
+  - cmake
+  - build-essential
+  # OBS virtual camera
+  - v4l2loopback-dkms
+  - v4l2loopback-utils
+  # Archives (dashboard backups + plugin uploads)
+  - zip
+  - unzip
+  - xz-utils
+  - bzip2
+  # guacd (remote desktop)
+  - guacd
+  - libguac-client-vnc0t64
+  # Reverse proxy + security
+  - nginx
+  - fail2ban
+  - nftables
+  # Third-party repos (declared under `apt.sources` above)
+  - obs-studio
+  - nodejs
 
 runcmd:
   - [bash, /tmp/oink-setup.sh]
