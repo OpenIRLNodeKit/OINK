@@ -480,7 +480,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         parents=[_common],
     )
-    ap.add_argument("--version", action="version", version="oink.py 26.09.1")
+    ap.add_argument("--version", action="version", version="oink.py 26.10.0")
 
     sub = ap.add_subparsers(
         dest="command", required=True,

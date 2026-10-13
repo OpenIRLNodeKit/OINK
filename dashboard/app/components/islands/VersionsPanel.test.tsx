@@ -21,7 +21,7 @@ const mockedGetVersions = vi.mocked(api.getVersions);
 const mockedHasRole = vi.mocked(useHasRole);
 
 const VERSIONS = {
-  oink: '26.09.1',
+  oink: '26.10.0',
   obs: '32.1.1',
   obsWebSocket: '5.5.6',
   mediamtx: '1.20.1',
@@ -48,7 +48,7 @@ describe('VersionsPanel', () => {
     render(<VersionsPanel />);
 
     expect(await screen.findByText('OINK')).toBeInTheDocument();
-    expect(screen.getByText('26.09.1')).toBeInTheDocument();
+    expect(screen.getByText('26.10.0')).toBeInTheDocument();
     expect(screen.getByText('OBS Studio')).toBeInTheDocument();
     expect(screen.getByText('32.1.1')).toBeInTheDocument();
     expect(screen.getByText('MediaMTX')).toBeInTheDocument();
@@ -84,7 +84,7 @@ describe('VersionsPanel', () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
     const text = writeText.mock.calls[0][0] as string;
-    expect(text).toContain('OINK: 26.09.1');
+    expect(text).toContain('OINK: 26.10.0');
     expect(text).toContain('OBS Studio: 32.1.1');
     expect(text).toContain('obs-irl-source: 2.0.0');
   });

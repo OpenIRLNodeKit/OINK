@@ -1,6 +1,6 @@
 {
   "name": "oink-log-server",
-  "version": "26.09.1",
+  "version": "26.10.0",
   "private": true,
   "scripts": {
     "test": "node --test *.test.js"
