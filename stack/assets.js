@@ -42,6 +42,8 @@ const ASSET_MIME = {
   '.aac': 'audio/aac',
   '.flac': 'audio/flac',
   '.txt': 'text/plain; charset=utf-8',
+  '.json': 'application/json',
+  '.zip': 'application/zip',
 };
 
 // Reduce any supplied name (path segments, traversal, controls) to a safe
@@ -191,6 +193,21 @@ function sniffAssetType(filePath) {
     if (b[1] === 0xf1 || b[1] === 0xf9) return 'audio/aac';
     if ((b[1] & 0xe0) === 0xe0 && ((b[1] >> 1) & 0x03) !== 0) return 'audio/mpeg';
   }
+  // ZIP local-file (PK\x03\x04), empty-archive (PK\x05\x06), and spanned
+  // (PK\x07\x08) headers.
+  if (b.length >= 4 && b[0] === 0x50 && b[1] === 0x4b &&
+      ((b[2] === 0x03 && b[3] === 0x04) || (b[2] === 0x05 && b[3] === 0x06) ||
+       (b[2] === 0x07 && b[3] === 0x08))) {
+    return 'application/zip';
+  }
+  // JSON has no magic number — treat a leading `{`/`[` (after an optional UTF-8
+  // BOM and ASCII whitespace) as the signature. Bytes are trusted, not parsed.
+  // ponytail: first `{`/`[` within 32 bytes; bump header size if JSON with long
+  // leading whitespace must upload.
+  let i = 0;
+  if (b.length >= 3 && b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf) i = 3;
+  while (i < b.length && (b[i] === 0x20 || b[i] === 0x09 || b[i] === 0x0a || b[i] === 0x0d)) i++;
+  if (i < b.length && (b[i] === 0x7b || b[i] === 0x5b)) return 'application/json';
   return null;
 }
 
@@ -220,7 +237,7 @@ function commitAsset(tmpPath, finalPath, name) {
       ok: false,
       error: sniffed
         ? `File content (${sniffed}) does not match the "${name}" extension`
-        : 'Unsupported file — PNG/JPEG/GIF/WebP images, video, and audio only',
+        : 'Unsupported file — PNG/JPEG/GIF/WebP images, video, audio, and JSON/ZIP only',
     };
   }
   fs.renameSync(tmpPath, finalPath);

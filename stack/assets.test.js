@@ -35,6 +35,8 @@ test('sanitizeAssetName rejects overlong names', () => {
 test('mimeForAsset maps known and unknown extensions', () => {
   assert.strictEqual(assets.mimeForAsset('a.png'), 'image/png');
   assert.strictEqual(assets.mimeForAsset('a.MKV'), 'video/x-matroska');
+  assert.strictEqual(assets.mimeForAsset('a.json'), 'application/json');
+  assert.strictEqual(assets.mimeForAsset('a.zip'), 'application/zip');
   assert.strictEqual(assets.mimeForAsset('a.bin'), 'application/octet-stream');
 });
 
@@ -105,6 +107,8 @@ test('sniffAssetType identifies the accepted asset families', () => {
     ['.flac', [...Buffer.from('fLaC')], 'audio/flac'],
     ['.mp3', [...Buffer.from('ID3')], 'audio/mpeg'],
     ['.aac', [0xff, 0xf1], 'audio/aac'],
+    ['.zip', [...Buffer.from('PK\x03\x04')], 'application/zip'],
+    ['.zip', [...Buffer.from('PK\x05\x06')], 'application/zip'],
   ];
   for (const [ext, bytes, want] of cases) {
     assert.strictEqual(assets.sniffAssetType(writeMagic(ext, bytes)), want, ext);
@@ -117,6 +121,20 @@ test('sniffAssetType refuses svg/text/html (no usable magic)', () => {
   }
 });
 
+test('sniffAssetType detects JSON by a leading brace/bracket', () => {
+  const cases = [
+    ['{"a":1}', 'application/json'],
+    ['[1,2]', 'application/json'],
+    ['\u00ef\u00bb\u00bf{"x":1}', 'application/json'],
+    ['  [\n  {"x":1}\n]', 'application/json'],
+  ];
+  for (const [body, want] of cases) {
+    assert.strictEqual(assets.sniffAssetType(writeMagic('.json', Buffer.from(body, 'latin1'))), want, body);
+  }
+  // `.json`-named but not JSON content → refused.
+  assert.strictEqual(assets.sniffAssetType(writeMagic('.json', Buffer.from('hello'))), null);
+});
+
 test('assetTypeMatches rejects an extension/content mismatch', () => {
   const png = assets.sniffAssetType(writeMagic('.png',
     [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -127,6 +145,12 @@ test('assetTypeMatches rejects an extension/content mismatch', () => {
   // BMFF brands are interchangeable within the family.
   assert.strictEqual(assets.assetTypeMatches('clip.mp4', 'video/quicktime'), true);
   assert.strictEqual(assets.assetTypeMatches('clip.mp4', null), false);
+  // JSON content only matches a `.json` name.
+  assert.strictEqual(assets.assetTypeMatches('scene.json', 'application/json'), true);
+  assert.strictEqual(assets.assetTypeMatches('clip.mp4', 'application/json'), false);
+  // ZIP content only matches a `.zip` name.
+  assert.strictEqual(assets.assetTypeMatches('pack.zip', 'application/zip'), true);
+  assert.strictEqual(assets.assetTypeMatches('clip.mp4', 'application/zip'), false);
 });
 
 test('sniffAssetType reads only a header (never the whole file)', () => {
@@ -155,6 +179,28 @@ test('commitAsset moves a matching upload into place', () => {
   fs.writeFileSync(tmp, PNG_BYTES);
   const r = assets.commitAsset(tmp, finalPath, 'overlay.png');
   assert.deepStrictEqual(r, { ok: true, contentType: 'image/png' });
+  assert.ok(fs.existsSync(finalPath));
+  assert.ok(!fs.existsSync(tmp));
+});
+
+test('commitAsset moves a JSON upload into place', () => {
+  const dir = tmpDir();
+  const tmp = path.join(dir, 'scene.json.up-1');
+  const finalPath = path.join(dir, 'scene.json');
+  fs.writeFileSync(tmp, '{"name":"intro"}');
+  const r = assets.commitAsset(tmp, finalPath, 'scene.json');
+  assert.deepStrictEqual(r, { ok: true, contentType: 'application/json' });
+  assert.ok(fs.existsSync(finalPath));
+  assert.ok(!fs.existsSync(tmp));
+});
+
+test('commitAsset moves a ZIP upload into place', () => {
+  const dir = tmpDir();
+  const tmp = path.join(dir, 'pack.zip.up-1');
+  const finalPath = path.join(dir, 'pack.zip');
+  fs.writeFileSync(tmp, Buffer.from('PK\x03\x04rest'));
+  const r = assets.commitAsset(tmp, finalPath, 'pack.zip');
+  assert.deepStrictEqual(r, { ok: true, contentType: 'application/zip' });
   assert.ok(fs.existsSync(finalPath));
   assert.ok(!fs.existsSync(tmp));
 });
