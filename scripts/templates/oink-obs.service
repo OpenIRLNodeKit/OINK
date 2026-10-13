@@ -36,6 +36,10 @@ ExecStart=/usr/bin/obs --websocket_port=4455 --websocket_password=$PW
 # process); dead/unreachable OBS is swallowed so stopping is never blocked.
 ExecStop=/usr/bin/node $STACK_DIR/stop-vcam.js
 ExecStartPost=$OINK_LIBEXEC/oink-obs-maximize.sh
+# Restore the OBS virtual camera when it was on before the last teardown (the
+# ExecStop below stops it first). Backgrounded so the retry-until-websocket-up
+# wait never blocks the systemd start job; no-op when the flag file is absent.
+ExecStartPost=/bin/sh -c '/usr/bin/node $STACK_DIR/start-vcam.js &'
 ExecStopPost=/bin/sh -c '/usr/bin/pkill -x obs || true; sleep 1'
 Restart=always
 RestartSec=5

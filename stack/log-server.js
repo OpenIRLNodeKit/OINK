@@ -61,6 +61,7 @@ const {
   startVirtualCam, stopVirtualCam,
   MULTISTREAM_PLATFORMS, PLATFORMS,
 } = require('./obs-bridge');
+const vcamState = require('./vcam-state');
 
 const PORT = parseInt(process.argv[2] || '8082', 10);
 const API_BIND_HOST = process.env.API_BIND_HOST || '127.0.0.1';
@@ -2058,6 +2059,7 @@ function scheduleVirtualCamStop() {
   preview.stopTimer = setTimeout(() => {
     preview.stopTimer = null;
     if (preview.subs.size > 0) return;
+    vcamState.setWanted(STACK_DIR, false);
     void stopVirtualCam().catch(() => {});
   }, PREVIEW_STOP_GRACE_MS);
 }
@@ -2122,6 +2124,7 @@ async function streamPreview(res) {
   // instead of on every API boot (which would block stream-settings changes).
   try {
     await startVirtualCam();
+    vcamState.setWanted(STACK_DIR, true);
   } catch (e) {
     return previewFail(`Preview feed unavailable: ${e.message}`);
   }
