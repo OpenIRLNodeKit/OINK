@@ -224,10 +224,20 @@ export async function restartIngest(name: string): Promise<void> {
 export async function getServiceConfig(
   service: string,
 ): Promise<{ content: string; file: string }> {
-  const data = await request<{ content: string; file: string }>(
-    `/api/config/${service}`,
-  );
-  return data;
+  const res = await fetch(`/api/config/${service}`);
+  const text = await res.text();
+  let data: { ok?: boolean; error?: string; content?: string; file?: string };
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(
+      `Request to /api/config/${service} failed (HTTP ${res.status}, non-JSON response)`,
+    );
+  }
+  if (!data.ok) {
+    throw new Error(data.error || `Request to /api/config/${service} failed`);
+  }
+  return { content: data.content ?? '', file: data.file ?? '' };
 }
 
 export async function saveServiceConfig(

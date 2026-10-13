@@ -383,10 +383,12 @@ describe('api client', () => {
   it('loads and saves a service config file', async () => {
     const getMock = mockFetchOnce({
       ok: true,
-      content: { content: '# config', file: '/etc/x.conf' },
+      content: '# config',
+      file: '/etc/x.conf',
     });
     vi.stubGlobal('fetch', getMock);
     const result = await getServiceConfig('mediamtx');
+    expect(result.content).toBe('# config');
     expect(result.file).toBe('/etc/x.conf');
 
     const putMock = mockFetchOnce({ ok: true });
