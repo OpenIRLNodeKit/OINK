@@ -30,6 +30,11 @@ ExecStartPre=/bin/sh -c '$OINK_LIBEXEC/oink-pin-recordings.sh $RECORDING_DIR'
 # (set by the `oink setup` host phase) instead.
 ExecStartPre=/bin/sh -c 'install -d -m 0755 $OINK_HOME/.config/obs-studio/basic/profiles/oink && { [ -f $OINK_HOME/.config/obs-studio/basic/profiles/oink/user.ini ] || /usr/bin/install -m 0644 $OINK_HOME/user.ini.golden $OINK_HOME/.config/obs-studio/basic/profiles/oink/user.ini; }'
 ExecStart=/usr/bin/obs --websocket_port=4455 --websocket_password=$PW
+# Gracefully stop the OBS virtual camera before the unit tears OBS down — a live
+# restart while the cam is held by a consumer (v4l2loopback) can stall the unit.
+# Runs while OBS is still alive (systemd runs ExecStop before signalling the main
+# process); dead/unreachable OBS is swallowed so stopping is never blocked.
+ExecStop=/usr/bin/node $STACK_DIR/stop-vcam.js
 ExecStartPost=$OINK_LIBEXEC/oink-obs-maximize.sh
 ExecStopPost=/bin/sh -c '/usr/bin/pkill -x obs || true; sleep 1'
 Restart=always

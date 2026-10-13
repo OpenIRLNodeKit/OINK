@@ -661,7 +661,8 @@ def section_oink_obs(cfg: SetupConfig, state: HostState) -> Result:
     unit = cfg.template("oink-obs.service").replace("$OINK_USER", cfg.obs_user).replace(
         "$OINK_HOME", str(cfg.obs_home)).replace("$PW", pw).replace(
         "$RECORDING_DIR", str(cfg.recording_dir)).replace(
-        "$OINK_LIBEXEC", str(OINK_LIBEXEC))
+        "$OINK_LIBEXEC", str(OINK_LIBEXEC)).replace(
+        "$STACK_DIR", str(cfg.stack_dir))
     if not cfg.dry_run:
         # 0600: the unit embeds --websocket_password=$PW, which local users
         # must not read (the runtime user's home is 0750 but units are root-owned).
