@@ -77,8 +77,9 @@ class SetupConfig:
     distro_version: str
     dry_run: bool
     auto_yes: bool
-    verbose: bool
-    started_at: float
+    force: bool = False
+    verbose: bool = False
+    started_at: float = 0.0
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> SetupConfig:
@@ -118,6 +119,7 @@ class SetupConfig:
             distro_version=release.get("VERSION_ID", ""),
             dry_run=args.dry_run,
             auto_yes=args.yes,
+            force=getattr(args, "force", False),
             verbose=getattr(args, "verbose", False),
             started_at=time.time(),
         )

@@ -497,6 +497,9 @@ def main() -> None:
                          help="Print commands without executing (verification skipped).")
     p_setup.add_argument("-y", "--yes", action="store_true",
                          help="Auto-confirm all prompts (non-interactive mode).")
+    p_setup.add_argument("--force", action="store_true",
+                         help="With -y: skip the dedicated-box confirmation "
+                              "(assume this host is already OINK-only).")
     p_setup.add_argument("-v", "--verbose", action="store_true",
                          help="Show full apt/build output (default: quiet).")
     p_setup.set_defaults(func=cmd_setup)

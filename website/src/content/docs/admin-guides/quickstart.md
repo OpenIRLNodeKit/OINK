@@ -9,6 +9,10 @@ Get a machine, clone, open the dashboard.
 
 Machine, either bare metal or VM:
 
+:::note
+Make sure this machine is only used for OINK!
+:::
+
 - Ubuntu Linux 24.04
 
 Hardware:

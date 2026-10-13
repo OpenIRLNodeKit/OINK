@@ -10,6 +10,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import secrets
 import shutil
 
@@ -35,7 +36,7 @@ from constants import (
     TAR_PKGS,
     X11_PKGS,
 )
-from logui import bail, confirm, info, warn
+from logui import bail, confirm, confirm_always, info, warn
 from models import HostState, Phase, Result, SetupConfig
 
 # The OBS profile/canvas logic (§6c) lives in obs_profile.py so sections.py does
@@ -66,6 +67,8 @@ def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
     if all_installed:
         info(cfg, "  → Base packages already installed, skipping apt-get")
         _load_v4l2loopback(cfg)
+        _confirm_dedicated_box(cfg)
+        _disable_unattended_upgrades(cfg)
         return Result(True)
 
     if not confirm(cfg, "Install OBS Studio (PPA) + Node 22 (NodeSource) + X11/VNC/FFmpeg + guacd + Nginx (apt)?"):
@@ -105,12 +108,79 @@ def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
                  "&& sudo apt-get install -y nodejs")
 
     _load_v4l2loopback(cfg)
+    _confirm_dedicated_box(cfg)
+    _disable_unattended_upgrades(cfg)
     return Result(True)
 
 
 _V4L2_MODULE_CONF = pathlib.Path("/etc/modules-load.d/oink-v4l2loopback.conf")
 _V4L2_MODPROBE_CONF = pathlib.Path("/etc/modprobe.d/oink-v4l2loopback.conf")
 _V4L2_MODPROBE_OPTS = 'options v4l2loopback exclusive_caps=1 card_label="OBS Virtual Camera"\n'
+
+# Unattended-upgrades: automatic kernel upgrades silently break the OBS virtual
+# camera (new kernel ships without the linux-modules-extra v4l2loopback needs;
+# setup only installs extras for the kernel it runs under). The 20auto-upgrades
+# file is the distro's on/off switch; writing 0 disables both list refreshes and
+# the upgrade run. Unattended-upgrades is not a setup-managed package, so the
+# helper no-ops on hosts where it is absent.
+_APT_CONF_DIR = pathlib.Path("/etc/apt/apt.conf.d")
+_AUTO_UPGRADES_CONF = _APT_CONF_DIR / "20auto-upgrades"
+
+
+def _confirm_dedicated_box(cfg: SetupConfig) -> None:
+    """Hard consent gate: this box must be dedicated to OINK.
+
+    Unlike ordinary prompts, --yes does NOT skip this — the box being
+    OINK-only is a hard install requirement (setup disables unattended-upgrades
+    and OINK's config assumes nothing else runs here). Only --force with -y
+    bypasses the question. Refusing aborts setup.
+    """
+    if cfg.dry_run:
+        info(cfg, "  [dry-run] would prompt: confirm this box is dedicated to OINK")
+        return
+    info(cfg, "  OINK expects a dedicated box: nothing else should be installed or")
+    info(cfg, "  running here — other workloads can break it, and OINK's tweaks")
+    info(cfg, "  (e.g. disabling unattended-upgrades) affect the whole system.")
+    if not confirm_always(
+        cfg, "Confirm this box is dedicated to OINK — nothing else should be "
+            "installed or run on it?"
+    ):
+        bail(cfg, "Setup aborted — OINK requires a dedicated box.")
+    info(cfg, "  → box confirmed OINK-only")
+
+
+def _disable_unattended_upgrades(cfg: SetupConfig) -> None:
+    """Turn off unattended-upgrades — a hard requirement, no user choice.
+
+    Automatic Ubuntu package upgrades can silently break OINK: kernel bumps
+    kill the OBS virtual camera (the new kernel ships without the
+    linux-modules-extra v4l2loopback needs), and updates to ffmpeg/nginx/
+    guacd/fail2ban/xorg can degrade preview, the dashboard proxy, remote
+    desktop or the brute-force login guard. PPA-pinned OBS and Node.js are
+    never auto-updated anyway ('oink upgrade' handles them). The
+    20auto-upgrades file is the distro's on/off switch; writing 0 disables
+    both list refreshes and the upgrade run. No-op on hosts without the
+    package or already off; manual upgrades still work.
+    """
+    if cfg.dry_run:
+        info(cfg, "  [dry-run] would disable unattended-upgrades (write 20auto-upgrades 0/0)")
+        return
+    if not run_ok(cfg, "dpkg", "-s", "unattended-upgrades"):
+        info(cfg, "  → unattended-upgrades not installed — nothing to disable")
+        return
+    enabled = any(
+        re.search(r'APT::Periodic::Unattended-Upgrade\s+"1"', f.read_text(errors="ignore"))
+        for f in _APT_CONF_DIR.glob("*") if f.is_file()
+    )
+    if not enabled:
+        info(cfg, "  → unattended-upgrades already disabled")
+        return
+    _AUTO_UPGRADES_CONF.write_text(
+        'APT::Periodic::Update-Package-Lists "0";\n'
+        'APT::Periodic::Unattended-Upgrade "0";\n',
+    )
+    info(cfg, "  → disabled unattended-upgrades (20auto-upgrades) — "
+              "upgrade manually with 'sudo apt-get update && sudo apt-get upgrade'")
 
 
 def _ensure_kernel_modules_extra(cfg: SetupConfig) -> None:

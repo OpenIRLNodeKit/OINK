@@ -49,3 +49,19 @@ def confirm(cfg: SetupConfig, prompt: str) -> bool:
         return answer in ("y", "yes")
     except (EOFError, KeyboardInterrupt):
         return False
+
+
+def confirm_always(cfg: SetupConfig, prompt: str) -> bool:
+    """Prompt unconditionally — --yes does NOT skip this one.
+
+    Used for consent prompts that must be explicit even in non-interactive
+    mode. Only --force (which implies -y) bypasses the question.
+    """
+    if cfg.force:
+        info(cfg, f"  → {prompt} [y/N] (--force)")
+        return True
+    try:
+        answer = input(f"{prompt} [y/N]: ").strip().lower()
+        return answer in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        return False

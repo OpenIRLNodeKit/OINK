@@ -565,6 +565,16 @@ section .sub {
 	color: var(--text-faint);
 }
 
+.warn {
+	margin-top: 14px;
+	padding: 12px 16px;
+	font-size: 13px;
+	color: var(--text-primary);
+	background: color-mix(in oklab, var(--warning) 12%, transparent);
+	border: 1px solid var(--warning);
+	border-radius: 8px;
+}
+
 .site-footer {
 	border-top: 1px solid var(--border-subtle);
 	padding: 36px 0 48px;
