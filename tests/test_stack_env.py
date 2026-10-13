@@ -8,6 +8,7 @@ import base64
 import dataclasses
 import hashlib
 import pathlib
+import shutil
 import subprocess
 
 import pytest
@@ -395,3 +396,22 @@ def test_build_srtla_rec_plans_rebuild_on_different_pin(tmp_path, cfg, monkeypat
     c = dataclasses.replace(cfg, dry_run=True)
     stack._build_srtla_rec(c, tmp_path)
     assert any("Would build" in m for m in msgs)
+
+
+def test_install_executable_replaces_running_binary(tmp_path):
+    """Regression: ETXTBSY crash was write_bytes on a live binary (stack.py:626)."""
+    prog = tmp_path / "prog"
+    shutil.copy2("/bin/sleep", prog)
+    p = subprocess.Popen([str(prog), "30"])
+    try:
+        with pytest.raises(OSError):
+            prog.write_bytes(b"junk")
+        src = tmp_path / "src"
+        src.write_bytes(b"replacement\n")
+        stack._install_executable(prog, src)
+        assert prog.read_bytes() == b"replacement\n"
+        assert prog.stat().st_mode & 0o777 == 0o755
+        assert p.poll() is None
+        assert not list(tmp_path.glob(".prog.new"))
+    finally:
+        p.terminate()

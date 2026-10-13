@@ -544,7 +544,7 @@ async function _provisionIrlSource(name, url) {
     adaptive_speed: true,
     catchup_percent: 5,
     wait_for_keyframe: true,
-    low_latency_audio: false,
+    low_latency_audio: true, // OBS "Use OBS Low-Latency Async Audio Mode"
     clear_on_disconnect: true,
     close_when_inactive: false,
     hw_decode: 0,

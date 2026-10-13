@@ -580,9 +580,27 @@ def _find_binary_file(root: pathlib.Path, name: str) -> pathlib.Path | None:
     return None
 
 
+def _install_executable(dst: pathlib.Path, src: pathlib.Path) -> None:
+    """Atomically install an executable, safe against a live running instance.
+
+    write_bytes truncates in place, which fails with ETXTBSY ('Text file busy')
+    when the file is currently executing (e.g. a running oink-mediamtx on a
+    `oink setup` re-run). Renaming a fresh temp file over the old inode instead
+    is allowed: the running process keeps the old inode, new execs get the new
+    file.
+    """
+    tmp = dst.with_name(f".{dst.name}.new")
+    try:
+        tmp.write_bytes(src.read_bytes())
+        tmp.chmod(0o755)
+        os.replace(tmp, dst)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
 def _download_binary(cfg: SetupConfig, bin_dir: pathlib.Path,
-                     name: str, meta: dict) -> None:
-    """Fetch + verify the pinned binary and record its own sha256 marker."""
+                     name: str, meta: dict) -> bool:
+    """Fetch + verify the pinned binary, record its sha256 marker; True if replaced."""
     exe = bin_dir / name
     marker = bin_dir / f"{name}.sha256"
 
@@ -590,14 +608,14 @@ def _download_binary(cfg: SetupConfig, bin_dir: pathlib.Path,
     # the pin in stack/components.json forces a re-download.
     if exe.exists() and _sha256_file(exe) == meta["sha256"]:
         info(cfg, f"  → {name} {meta['version']} already present and verified, skipping download")
-        return
+        return False
     if cfg.dry_run:
         info(cfg, f"  → Would download {name} from {meta['url']}")
-        return
+        return False
 
     if not confirm(cfg, f"Download pinned {name} binary (~{meta.get('size', '?')} MiB)?"):
         info(cfg, f"  → Skipping {name} binary download")
-        return
+        return False
 
     info(cfg, f"  → Downloading {name}…")
     bin_dir.mkdir(parents=True, exist_ok=True)
@@ -623,12 +641,12 @@ def _download_binary(cfg: SetupConfig, bin_dir: pathlib.Path,
         tmp_tar.unlink(missing_ok=True)
         bail(cfg, f"Could not find `{name}` binary inside the release tarball")
 
-    exe.write_bytes(src.read_bytes())
-    exe.chmod(0o755)
+    _install_executable(exe, src)
     marker.write_text(_sha256_file(exe) + "\n")
     tmp_tar.unlink(missing_ok=True)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     info(cfg, f"  → Installed {name} → {exe} (sha256 verified)")
+    return True
 
 
 # ── SRTLA receiver (built from source) ────────────────────────────────────────
@@ -637,27 +655,27 @@ def _srtla_version_marker(bin_dir: pathlib.Path) -> pathlib.Path:
     return bin_dir / f"{SRTLA_BIN}.version"
 
 
-def _build_srtla_rec(cfg: SetupConfig, bin_dir: pathlib.Path) -> None:
+def _build_srtla_rec(cfg: SetupConfig, bin_dir: pathlib.Path) -> bool:
     """Build srtla_rec from source and install it into bin_dir.
 
     irlserver/srtla ships no release tarball, so unlike MediaMTX/NOALBS this is
     a git + cmake build (deps: git, cmake, build-essential; spdlog is fetched by
     CMake). Idempotent: skips when the installed binary already matches the
     pinned commit. Only the receiver target is built — upstream `srtla_send`
-    has an assert-in-NDEBUG bug, and OINK never runs it.
+    has an assert-in-NDEBUG bug, and OINK never runs it. True if replaced.
     """
     exe = bin_dir / SRTLA_BIN
     marker = _srtla_version_marker(bin_dir)
     if exe.exists() and marker.exists() and marker.read_text().strip() == SRTLA_COMMIT:
         info(cfg, f"  → {SRTLA_BIN} {SRTLA_COMMIT[:12]} already built, skipping")
-        return
+        return False
     if cfg.dry_run:
         info(cfg, f"  → Would build {SRTLA_BIN} from {SRTLA_REPO} @ {SRTLA_COMMIT[:12]}")
-        return
+        return False
 
     if not confirm(cfg, f"Build {SRTLA_BIN} from source ({SRTLA_REPO} @ {SRTLA_COMMIT[:12]})?"):
         info(cfg, f"  → Skipping {SRTLA_BIN} build")
-        return
+        return False
 
     bin_dir.mkdir(parents=True, exist_ok=True)
     work = bin_dir / ".srtla-build"
@@ -680,11 +698,11 @@ def _build_srtla_rec(cfg: SetupConfig, bin_dir: pathlib.Path) -> None:
     if src is None:
         shutil.rmtree(work, ignore_errors=True)
         bail(cfg, f"build did not produce the {SRTLA_BIN} binary")
-    exe.write_bytes(src.read_bytes())
-    exe.chmod(0o755)
+    _install_executable(exe, src)
     marker.write_text(SRTLA_COMMIT + "\n")
     shutil.rmtree(work, ignore_errors=True)
     info(cfg, f"  → Installed {SRTLA_BIN} → {exe} (built from {SRTLA_COMMIT[:12]})")
+    return True
 
 
 def _srtla_version(bin_dir: pathlib.Path) -> str:
@@ -731,11 +749,14 @@ def section5_install_stack(cfg: SetupConfig) -> None:
         bin_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Binaries ──────────────────────────────────────────────────────────────
+    replaced_binaries: set[str] = set()
     for name in ("mediamtx", "noalbs"):
-        _download_binary(cfg, bin_dir, name, BINARY_PINS[name])
+        if _download_binary(cfg, bin_dir, name, BINARY_PINS[name]):
+            replaced_binaries.add(name)
 
     # ── SRTLA receiver (built from source; no upstream release tarball) ────────
-    _build_srtla_rec(cfg, bin_dir)
+    if _build_srtla_rec(cfg, bin_dir):
+        replaced_binaries.add(SRTLA_BIN)
 
     # ── Nginx (apt) ──────────────────────────────────────────────────────────
     # Nginx is installed in §1 with the other base packages. The distro ships
@@ -967,6 +988,10 @@ def section5_install_stack(cfg: SetupConfig) -> None:
 
     written = {}
     daemon_reload = False
+    # A replaced binary must not sit unused: restart its unit so the new version
+    # actually runs, even when the unit file itself didn't change.
+    for name in replaced_binaries:
+        force_restart.add(f"oink-{name}")
     for spec in units:
         content = _render_unit(cfg, spec["template"])
         if _unit_path(spec["name"]).exists() and \
