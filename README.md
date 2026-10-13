@@ -94,7 +94,7 @@ Precedence: real process environment > config file > generated/default.
 - 🔌 **obs-websocket v5** — Scene switching, stream control
 - 📺 **Web Dashboard** — React Router: live OBS monitor, remote desktop, ingest, recordings, settings
 - 🚀 **First-run Welcome** — Guides channel name, stream keys, and video quality on first login; skipped when the `OINK_*` config already provides them
-- 📡 **MediaMTX Ingest** — RTMP/SRT/RTSP ingest with a per-install secret ingest key
+- 📡 **MediaMTX Ingest** — RTMP/SRT/RTSP ingest with a per-install secret ingest key; SRTLA bonding de-bonded by `srtla_rec`
 - 🛡️ **Stream Drop Protection** — Auto-switches to BRB/Low-Bitrate when your feed drops
 - 🎞️ **Overlays** — Easy Twitch clips player, chat overlay, or any custom browser-source URL
 - 💬 **Multi-platform** — Stream to Twitch, YouTube, and Kick; multistream + vertical canvas via OBS plugins
@@ -115,6 +115,7 @@ AGPL-3.0 — see [LICENSE](LICENSE) for details.
 - [Aitum Multistream](https://github.com/Aitum/obs-aitum-multistream) — stream to Twitch/YouTube/Kick
 - [obs-irl-source](https://github.com/irlserver/obs-irl-source) — IRL media source plugin
 - [irl-clips](https://github.com/irlserver/irl-clips) — IRL clips player
+- [srtla](https://github.com/irlserver/srtla) — SRTLA multi-link bonding receiver (srtla_rec)
 - [twitch_clips_player](https://github.com/teklynk/twitch_clips_player) — Twitch clips overlay
 
 ### 🌐 Web & Remote Desktop

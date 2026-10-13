@@ -15,7 +15,7 @@ export const FEATURES = [
 	},
 	{
 		title: 'MediaMTX ingest',
-		body: 'RTMP, SRT and RTSP ingest via MediaMTX with a per-install stream key — ready for deployment use.',
+		body: 'RTMP, SRT, RTSP and SRTLA ingest with a per-install stream key — SRTLA multi-link bonding is de-bonded by srtla_rec before it reaches MediaMTX.',
 		icon: 'signal',
 		href: 'https://mediamtx.org/',
 	},

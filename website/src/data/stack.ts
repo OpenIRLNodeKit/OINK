@@ -8,6 +8,7 @@ export const STACK = [
 	{ name: 'Aitum Multistream', href: 'https://github.com/Aitum/obs-aitum-multistream' },
 	{ name: 'obs-irl-source', href: 'https://github.com/irlserver/obs-irl-source' },
 	{ name: 'irl-clips', href: 'https://github.com/irlserver/irl-clips' },
+	{ name: 'srtla', href: 'https://github.com/irlserver/srtla' },
 	{ name: 'twitch_clips_player', href: 'https://github.com/teklynk/twitch_clips_player' },
 	{ name: 'MediaMTX', href: 'https://github.com/bluenviron/mediamtx' },
 	{ name: 'Nginx', href: 'https://nginx.org/' },

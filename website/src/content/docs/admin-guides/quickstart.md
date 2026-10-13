@@ -28,6 +28,7 @@ Network Ports:
 - OINK Dashboard: 8305
 - RTMP: 1935
 - SRT: 8890/udp
+- SRTLA: 5000/udp
 
 ## 2 · Install
 
