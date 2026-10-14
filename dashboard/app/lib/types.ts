@@ -39,3 +39,11 @@ export interface StreamStatus {
   outputSkippedFrames: number;
   outputTotalFrames: number;
 }
+
+export interface RecordStatus {
+  outputActive: boolean;
+  outputTimecode: string;
+  outputDuration: number;
+  outputBytes: number;
+  outputPaused: boolean;
+}

@@ -7,6 +7,7 @@ import type {
   IngestInfo,
   NoalbsConfig,
   StreamStatus,
+  RecordStatus,
 } from './types';
 
 // Raw fetch for endpoints whose response shape is not the {ok, content}
@@ -752,6 +753,34 @@ export async function getObsStreamStatus(): Promise<StreamStatus> {
     outputBytes: data.outputBytes || 0,
     outputSkippedFrames: data.outputSkippedFrames || 0,
     outputTotalFrames: data.outputTotalFrames || 0,
+  };
+}
+
+// ── OBS recording control ───────────────────────────────────────────────────
+
+export async function startObsRecord(): Promise<void> {
+  await request<never>('/api/obs/record/start', { method: 'POST', body: '{}' });
+}
+
+export async function stopObsRecord(): Promise<void> {
+  await request<never>('/api/obs/record/stop', { method: 'POST', body: '{}' });
+}
+
+export async function getObsRecordStatus(): Promise<RecordStatus> {
+  const res = await fetch('/api/obs/record/status');
+  const data = (await res.json()) as {
+    ok: boolean;
+    error?: string;
+  } & RecordStatus;
+  if (!data.ok) {
+    throw new Error(data.error || 'Failed to load recording status');
+  }
+  return {
+    outputActive: data.outputActive,
+    outputTimecode: data.outputTimecode || '',
+    outputDuration: data.outputDuration || 0,
+    outputBytes: data.outputBytes || 0,
+    outputPaused: data.outputPaused || false,
   };
 }
 

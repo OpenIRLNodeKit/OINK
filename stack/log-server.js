@@ -58,6 +58,7 @@ const {
   readMultistreamConfig, multistreamKeyState, applyMultistreamKeys, removePlatformFromMultistream,
   writeMultistreamConfig,
   startStream, stopStream, getStreamStatus,
+  startRecording, stopRecording, getRecordingStatus,
   startVirtualCam, stopVirtualCam,
   MULTISTREAM_PLATFORMS, PLATFORMS,
 } = require('./obs-bridge');
@@ -1060,6 +1061,34 @@ const server = http.createServer(async (req, res) => {
       const status = await getStreamStatus();
       json(res, 200, { ok: true, ...status });
     }, { server: 502, generic: 'Failed to get stream status' });
+  }
+
+  // POST /api/obs/record/start
+  if (pathname === '/api/obs/record/start' && req.method === 'POST') {
+    const user = requireRole(req, res, [ROLES.ADMIN, ROLES.OPERATOR]);
+    void user;
+    return handleApi(res, async () => {
+      const result = await startRecording();
+      json(res, 200, { ok: true, message: 'Recording started', ...result });
+    }, { server: 502, generic: 'Failed to start recording' });
+  }
+
+  // POST /api/obs/record/stop
+  if (pathname === '/api/obs/record/stop' && req.method === 'POST') {
+    const user = requireRole(req, res, [ROLES.ADMIN, ROLES.OPERATOR]);
+    void user;
+    return handleApi(res, async () => {
+      const result = await stopRecording();
+      json(res, 200, { ok: true, message: 'Recording stopped', ...result });
+    }, { server: 502, generic: 'Failed to stop recording' });
+  }
+
+  // GET /api/obs/record/status
+  if (pathname === '/api/obs/record/status' && req.method === 'GET') {
+    return handleApi(res, async () => {
+      const status = await getRecordingStatus();
+      json(res, 200, { ok: true, ...status });
+    }, { server: 502, generic: 'Failed to get recording status' });
   }
 
   // GET /api/preview/stream — OBS virtual camera → multipart MJPEG for the

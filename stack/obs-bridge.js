@@ -977,6 +977,57 @@ function getStreamStatus() {
   });
 }
 
+// ── OBS recording control (start/stop/status) ────────────────────────────────
+
+async function _startRecord(req) {
+  const status = await req('GetRecordStatus');
+  if (status.outputActive) throw new BusyError('Recording is already active');
+  await req('StartRecord');
+  return { outputActive: true };
+}
+
+function startRecording() {
+  return obsEnqueue(async () => {
+    const bridge = await ensureObs();
+    const req = (type, data) => bridge.request(type, data);
+    return _startRecord(req);
+  });
+}
+
+async function _stopRecord(req) {
+  const status = await req('GetRecordStatus');
+  if (!status.outputActive) throw new BusyError('Recording is not active');
+  await req('StopRecord');
+  return { outputActive: false };
+}
+
+function stopRecording() {
+  return obsEnqueue(async () => {
+    const bridge = await ensureObs();
+    const req = (type, data) => bridge.request(type, data);
+    return _stopRecord(req);
+  });
+}
+
+async function _getRecordStatus(req) {
+  const resp = await req('GetRecordStatus');
+  return {
+    outputActive: resp.outputActive,
+    outputTimecode: resp.outputTimecode || '',
+    outputDuration: resp.outputDuration || 0,
+    outputBytes: resp.outputBytes || 0,
+    outputPaused: resp.outputPaused || false,
+  };
+}
+
+function getRecordingStatus() {
+  return obsEnqueue(async () => {
+    const bridge = await ensureObs();
+    const req = (type, data) => bridge.request(type, data);
+    return _getRecordStatus(req);
+  });
+}
+
 // ── OBS virtual camera control (start/stop/status) ───────────────────────────
 // Idempotent: the dashboard auto-starts the camera on boot and the preview
 // reads the resulting v4l2loopback device, so already-on/off is not an error.
@@ -1229,6 +1280,9 @@ module.exports = {
   startStream,
   stopStream,
   getStreamStatus,
+  startRecording,
+  stopRecording,
+  getRecordingStatus,
   startVirtualCam,
   stopVirtualCam,
 };
