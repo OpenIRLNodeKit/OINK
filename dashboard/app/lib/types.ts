@@ -13,8 +13,16 @@ export interface NoalbsSwitcherConfig {
   };
 }
 
+export interface NoalbsChatConfig {
+  platform?: string;
+  username?: string;
+  admins?: string[];
+  commands?: Record<string, unknown>;
+}
+
 export interface NoalbsConfig {
   switcher?: Partial<NoalbsSwitcherConfig>;
+  chat?: NoalbsChatConfig;
   [key: string]: unknown;
 }
 

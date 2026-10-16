@@ -531,9 +531,13 @@ def section4b_install_noalbs(cfg: SetupConfig) -> None:
             info(cfg, "  → wired OBS websocket password into NOALBS config")
         else:
             warn(cfg, "  → OBS ws password file missing; NOALBS will fail to auth to OBS")
-        if bot_user:
-            data.setdefault("chat", {})["username"] = bot_user
-            info(cfg, "  → wired Twitch bot username into NOALBS config")
+        # NOALBS joins/listens in `chat.username`: it is the CHANNEL to read/respond
+        # in, not the bot login. The bot account lives only in .env
+        # TWITCH_BOT_USERNAME (see stack/noalbs/.env.example).
+        channel = (os.environ.get("OINK_TWITCH_CHANNEL") or "").strip()
+        if channel:
+            data.setdefault("chat", {})["username"] = channel
+            info(cfg, "  → wired Twitch channel into NOALBS config")
         # Point the drop-protection stats poll at the *monitored* feed (stored in
         # profiles.json, reserved `irl` by default). statsUrl contract mirrors
         # stack/ingest.js noalbsStatsUrl() (single key owner).

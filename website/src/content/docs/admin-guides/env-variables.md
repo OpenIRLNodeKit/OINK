@@ -28,11 +28,11 @@ seed-once / first-boot-only and ignore a changed value on an already-set-up node
 | `OINK_INGEST_KEY` | The ingest profile is created once. An existing `ingest.json` is kept on re-runs; apply a new key by deleting it (`rm ~/obsuser/oink/stack/ingest.json`) or in the dashboard (Settings → Stream Settings → rotate). |
 | `OINK_OBS_USER` | The runtime account and every path are baked at the first setup. Set before the first install. |
 | `OINK_SESSION_SECRET` | Not configurable — always generated and preserved. |
-| `OINK_TWITCH_BOT_OAUTH` | `noalbs/.env` is only created when missing; existing chat credentials are never clobbered. |
+| `OINK_TWITCH_BOT_USERNAME` / `OINK_TWITCH_BOT_OAUTH` | `noalbs/.env` is only created when missing; existing chat credentials are never clobbered. |
 | `OINK_TWITCH_CHANNEL` / `OINK_VIDEO_PRESET` | Seed the first-run welcome screen once. They are stored in `dashboard.json`/OBS on the first API boot; later dashboard edits are never clobbered by a setup re-run. |
 
 Everything else (`OINK_PRIMARY_PLATFORM`, the `OINK_*_STREAM_KEY` set, and
-`OINK_TWITCH_BOT_USERNAME` for the NOALBS config) is re-applied to the box on
-every setup run and at OBS boot.
+`OINK_TWITCH_CHANNEL` — which is wired into NOALBS' `chat.username`, the channel
+it joins) is re-applied to the box on every setup run and at OBS boot.
 
 ---

@@ -59,6 +59,21 @@ export async function saveNoalbsConfig(config: NoalbsConfig): Promise<void> {
   });
 }
 
+// NOALBS chat bot credentials live in noalbs/.env (loaded by oink-noalbs.service).
+// The oauth value comes back redacted; a save that leaves it untouched round-trips
+// the placeholder and the server restores the real token from disk.
+export async function getNoalbsEnv(): Promise<string> {
+  const data = await request<unknown>('/api/config/noalbs_env');
+  return typeof data === 'string' ? data : '';
+}
+
+export async function saveNoalbsEnv(content: string): Promise<void> {
+  await request<never>('/api/config/noalbs_env', {
+    method: 'PUT',
+    body: JSON.stringify({ content }),
+  });
+}
+
 export interface ServiceStatus {
   running: boolean;
 }

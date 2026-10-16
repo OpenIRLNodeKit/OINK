@@ -52,9 +52,9 @@
     "enableAutoStopStreamOnHostOrRaid": true,
     "announceRaidOnAutoStop": true,
     "commands": {
-      "Fix": { "permission": null, "userPermissions": [], "alias": ["f"] },
-      "Switch": { "permission": "Mod", "alias": ["ss"] },
-      "Bitrate": { "permission": null, "alias": ["b"] }
+      "Fix": { "permission": "Admin", "userPermissions": [], "alias": ["f"] },
+      "Switch": { "permission": "Admin", "userPermissions": [], "alias": ["ss"] },
+      "Bitrate": { "permission": "Admin", "userPermissions": [], "alias": ["b"] }
     }
   },
   "optionalScenes": {

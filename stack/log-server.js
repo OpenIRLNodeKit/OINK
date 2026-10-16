@@ -33,7 +33,7 @@ const { trustEnabled, clientIpFor } = require('./proxy');
 const { isUnsafeMethod, checkOrigin, checkCsrf } = require('./csrf');
 const status = require('./status');
 const { InputError, BusyError } = require('./errors');
-const { CONFIG_FILES, validateConfig, redactConfig, restoreConfigSecrets } = require('./config');
+const { CONFIG_FILES, validateConfig, redactConfig, restoreConfigSecrets, setNoalbsChannel, pinNoalbsChannel } = require('./config');
 const {
   AVATAR_DIR, AVATAR_MAX_BYTES, sanitizeAssetName,
   mimeForAsset, writeAssetStream, assertContained, avatarPath, sniffAvatarType,
@@ -684,6 +684,12 @@ const server = http.createServer(async (req, res) => {
       // Restore any redacted secret placeholder from the on-disk file before write
       // so an edit that doesn't touch a secret never clobbers it with the marker.
       restored = restoreConfigSecrets(service, content);
+      // The channel is dashboard-owned; a whole-file config save must not revert
+      // NOALBS' chat.username to a stale value (see setNoalbsChannel).
+      if (service === 'noalbs') {
+        const ch = dashboardSettings.readSettings(STACK_DIR).twitchChannel;
+        restored = pinNoalbsChannel(restored, ch);
+      }
       validateConfig(service, restored);
     } catch (e) {
       // Validation messages are user-facing (the editor shows data.error).
@@ -756,6 +762,19 @@ const server = http.createServer(async (req, res) => {
         next.twitchChannel = dashboardSettings.normalizeChannel(body.twitchChannel);
       }
       const saved = dashboardSettings.writeSettings(STACK_DIR, next);
+      // NOALBS joins/listens in chat.username, so a channel change must follow
+      // into its config and (if running) restart it — NOALBS reads config once
+      // at start. Same "only restart an active unit" rule as config saves.
+      if (body.twitchChannel !== undefined && setNoalbsChannel(saved.twitchChannel)) {
+        const unit = serviceUnit('noalbs');
+        if (unit && isUnitActive(unit)) {
+          try {
+            systemctl('restart', unit, { timeout: 30000 });
+          } catch {
+            /* best effort */
+          }
+        }
+      }
       json(res, 200, {
         ok: true,
         welcomeComplete: saved.welcomeComplete,
@@ -1703,6 +1722,10 @@ const server = http.createServer(async (req, res) => {
 const wss = new WebSocketServer({ server });
 
 function serviceUnit(name) {
+  // noalbs_env edits the .env that oink-noalbs loads at start, so a save
+  // restarts the same unit. Kept out of CTRL_UNITS so it stays off the
+  // start/stop allowlist (polkit rule matches unit names, not config keys).
+  if (name === 'noalbs_env') return CTRL_UNITS.noalbs;
   return CTRL_UNITS[name] || null;
 }
 

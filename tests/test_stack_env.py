@@ -275,6 +275,26 @@ def test_section4b_preserves_dashboard_switcher_across_rerun(cfg, tmp_path, monk
     assert "live/SeededKey_0123456789abc/irl" in url
 
 
+def test_section4b_wires_channel_not_bot_into_noalbs(cfg, tmp_path, monkeypatch):
+    """NOALBS joins/listens in chat.username (the channel), not the bot login."""
+    import json
+
+    c = dataclasses.replace(cfg, stack_dir=tmp_path)
+    monkeypatch.setenv("OINK_TWITCH_CHANNEL", "Castle_")
+    monkeypatch.setenv("OINK_TWITCH_BOT_USERNAME", "my_bot")
+    monkeypatch.setattr(stack, "run", _run_capture([]))
+
+    stack.section4b_install_noalbs(c)
+
+    data = json.loads((tmp_path / "noalbs" / "config.json").read_text())
+    assert data["chat"]["username"] == "Castle_"
+    # Default command permissions ship as the explicit Admin string.
+    assert data["chat"]["commands"]
+    assert all(c["permission"] == "Admin" for c in data["chat"]["commands"].values())
+    env = (tmp_path / "noalbs" / ".env").read_text()
+    assert "TWITCH_BOT_USERNAME=my_bot" in env
+
+
 def test_dry_run_stack_sections_write_nothing(tmp_path, cfg, monkeypatch, capsys):
     """The native-stack sections must not touch the filesystem under --dry-run:
     every write primitive is trapped while each section runs with dry_run=True."""

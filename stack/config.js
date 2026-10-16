@@ -20,6 +20,7 @@ const STACK_DIR = process.env.OINK_STACK_DIR || __dirname;
 
 const CONFIG_FILES = {
   noalbs: path.join(STACK_DIR, 'noalbs', 'config.json'),
+  noalbs_env: path.join(STACK_DIR, 'noalbs', '.env'),
   mediamtx: path.join(STACK_DIR, 'mediamtx.yml'),
 };
 
@@ -72,11 +73,23 @@ function _mediamtxKey() {
   return state && state.key ? state.key : null;
 }
 
+// .env vars whose values are secrets; masked on read / restored on write.
+const ENV_SECRET_KEYS = new Set(['TWITCH_BOT_OAUTH']);
+const ENV_LINE = /^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(.*)$/;
+
 function validateConfig(service, content) {
   if (service === 'noalbs') {
     const parsed = JSON.parse(content);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       throw new Error('config.json must be a JSON object');
+    }
+    return;
+  }
+  if (service === 'noalbs_env') {
+    for (const line of content.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      if (!ENV_LINE.test(line)) throw new Error('.env line is not KEY=VALUE: ' + t);
     }
     return;
   }
@@ -104,6 +117,18 @@ function redactConfig(service, content) {
     if (key) return content.split(key).join(REDACTED);
     return content;
   }
+  if (service === 'noalbs_env') {
+    return content
+      .split('\n')
+      .map((line) => {
+        const m = line.match(ENV_LINE);
+        if (m && ENV_SECRET_KEYS.has(m[2]) && m[4] && m[4] !== REDACTED) {
+          return m[1] + m[2] + m[3] + REDACTED;
+        }
+        return line;
+      })
+      .join('\n');
+  }
   return content;
 }
 
@@ -127,7 +152,76 @@ function restoreConfigSecrets(service, content) {
     if (key) return content.split(REDACTED).join(key);
     return content;
   }
+  if (service === 'noalbs_env') {
+    // Restore a masked secret from the on-disk .env so an edit elsewhere never
+    // writes the placeholder. A missing file leaves the placeholder untouched
+    // (nothing to restore from) — the caller only reaches here after a real edit.
+    let disk = '';
+    try {
+      disk = fs.readFileSync(CONFIG_FILES.noalbs_env, 'utf-8');
+    } catch {
+      disk = '';
+    }
+    const diskVals = {};
+    for (const line of disk.split('\n')) {
+      const m = line.match(ENV_LINE);
+      if (m) diskVals[m[2]] = m[4];
+    }
+    return content
+      .split('\n')
+      .map((line) => {
+        const m = line.match(ENV_LINE);
+        if (
+          m && ENV_SECRET_KEYS.has(m[2]) && m[4] === REDACTED &&
+          diskVals[m[2]] !== undefined && diskVals[m[2]] !== ''
+        ) {
+          return m[1] + m[2] + m[3] + diskVals[m[2]];
+        }
+        return line;
+      })
+      .join('\n');
+  }
   return content;
+}
+
+// Point NOALBS' chat config at `channel` — the Twitch channel NOALBS joins and
+// listens in (distinct from the bot login in .env). Returns true when the file
+// changed; false on an empty name, missing file, or an unchanged value.
+function setNoalbsChannel(channel, file = CONFIG_FILES.noalbs) {
+  const name = String(channel || '').trim();
+  if (!name) return false;
+  let data;
+  try {
+    data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return false;
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  if (!data.chat || typeof data.chat !== 'object') data.chat = {};
+  if (data.chat.username === name) return false;
+  data.chat.username = name;
+  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+  return true;
+}
+
+// Force chat.username to `channel` in a noalbs config JSON string. The channel
+// is dashboard-owned (settings.js), so a config save must never revert it — the
+// editor round-trips the whole file and would otherwise write back a stale
+// username. Returns the content unchanged when the channel is empty or the
+// content isn't a JSON object.
+function pinNoalbsChannel(content, channel) {
+  const name = String(channel || '').trim();
+  if (!name) return content;
+  let data;
+  try {
+    data = JSON.parse(content);
+  } catch {
+    return content;
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return content;
+  if (!data.chat || typeof data.chat !== 'object') data.chat = {};
+  data.chat.username = name;
+  return JSON.stringify(data, null, 2) + '\n';
 }
 
 module.exports = {
@@ -136,4 +230,6 @@ module.exports = {
   validateConfig,
   redactConfig,
   restoreConfigSecrets,
+  setNoalbsChannel,
+  pinNoalbsChannel,
 };
