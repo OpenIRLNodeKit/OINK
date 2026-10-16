@@ -343,9 +343,7 @@ export default function IngestManager() {
                       size="sm"
                       variant={confirmDelete === name ? 'danger' : 'ghost'}
                       className={
-                        confirmDelete === name
-                          ? 'flex-1 text-danger'
-                          : 'flex-1 text-danger'
+                        confirmDelete === name ? 'flex-1' : 'flex-1 text-danger'
                       }
                       onClick={() => handleConfirmDelete(name)}
                     >

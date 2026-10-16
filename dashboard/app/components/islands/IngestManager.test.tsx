@@ -187,7 +187,10 @@ describe('IngestManager', () => {
     await user.click(screen.getByRole('button', { name: 'Save Current' }));
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm?' }));
+    const confirm = screen.getByRole('button', { name: 'Confirm?' });
+    expect(confirm).toHaveClass('bg-danger');
+    expect(confirm).not.toHaveClass('text-danger');
+    await user.click(confirm);
 
     await waitFor(() => expect(mockedDelete).toHaveBeenCalledWith('old_feed'));
     expect(screen.queryByText('old_feed')).not.toBeInTheDocument();
