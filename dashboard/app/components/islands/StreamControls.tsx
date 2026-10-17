@@ -112,6 +112,17 @@ export default function StreamControls() {
     }
   };
 
+  const streamCaption =
+    streamActive === null
+      ? 'OBS unreachable'
+      : streamActive
+        ? `LIVE · ${streamStats.timecode || formatDuration(streamStats.duration)} · ${formatBytes(streamStats.bytes)}`
+        : null;
+  const recordCaption = recordActive
+    ? `REC · ${recordStats.timecode || formatDuration(recordStats.duration)} · ${formatBytes(recordStats.bytes)}`
+    : null;
+  const caption = [streamCaption, recordCaption].filter(Boolean).join(' · ');
+
   return (
     <div className="flex flex-col items-end gap-1.5">
       <div className="flex gap-3 items-center">
@@ -140,15 +151,7 @@ export default function StreamControls() {
               : 'Start Recording'}
         </Button>
       </div>
-      <p className="text-xs tabular text-text-secondary">
-        {streamActive === null
-          ? 'Status unavailable'
-          : streamActive
-            ? `LIVE · ${streamStats.timecode || formatDuration(streamStats.duration)} · ${formatBytes(streamStats.bytes)}`
-            : 'Offline'}
-        {recordActive &&
-          ` · REC · ${recordStats.timecode || formatDuration(recordStats.duration)} · ${formatBytes(recordStats.bytes)}`}
-      </p>
+      <p className="text-xs tabular text-text-secondary">{caption}</p>
       {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );

@@ -61,6 +61,16 @@ describe('StreamControls', () => {
     expect(startStream).toHaveAttribute('aria-pressed', 'false');
     expect(startRecord).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByRole('button', { name: /Stop/ })).toBeNull();
+    expect(screen.queryByText('Offline')).not.toBeInTheDocument();
+  });
+
+  it('shows a recording caption without a leading separator when only recording', async () => {
+    mockedRecordStatus.mockResolvedValue(record(true));
+    render(<StreamControls />);
+
+    await screen.findByRole('button', { name: 'Stop Recording' });
+    expect(screen.getByText(/^REC · /)).toBeInTheDocument();
+    expect(screen.queryByText(/Offline/)).not.toBeInTheDocument();
   });
 
   it('flips the stream toggle to stop when streaming is active', async () => {
@@ -140,7 +150,7 @@ describe('StreamControls', () => {
     render(<StreamControls />);
 
     await waitFor(() =>
-      expect(screen.getByText('Status unavailable')).toBeInTheDocument(),
+      expect(screen.getByText('OBS unreachable')).toBeInTheDocument(),
     );
     expect(screen.getByRole('button', { name: 'Start Stream' })).toBeDisabled();
     expect(

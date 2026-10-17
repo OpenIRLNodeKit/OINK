@@ -74,7 +74,7 @@ export default function SettingsTabs() {
           </div>
           <Link
             to="/advanced"
-            className="shrink-0 rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-colors hover:bg-primary-hover"
+            className="shrink-0 rounded-control bg-primary px-3 py-1.5 text-xs font-medium text-on-primary shadow-sm transition-colors hover:bg-primary-hover"
           >
             Open Advanced
           </Link>

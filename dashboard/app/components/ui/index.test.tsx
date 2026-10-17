@@ -8,7 +8,7 @@ describe('UI primitives', () => {
   it('renders a Button with variant classes', () => {
     render(<Button variant="danger">Delete</Button>);
     const button = screen.getByRole('button', { name: 'Delete' });
-    expect(button).toHaveClass('bg-danger');
+    expect(button).toHaveClass('bg-danger-solid');
     expect(button).toHaveAttribute('type', 'button');
   });
 

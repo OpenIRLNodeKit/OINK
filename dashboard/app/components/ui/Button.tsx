@@ -7,15 +7,15 @@ import { cn } from '../../lib/cn';
 
 const variants = {
   primary:
-    'bg-primary text-white shadow-sm hover:bg-primary-hover active:bg-primary focus-visible:ring-primary/50',
+    'bg-primary text-on-primary shadow-sm hover:bg-primary-hover active:bg-primary focus-visible:ring-primary/50',
   secondary:
     'bg-bg-card text-text-primary ring-1 ring-inset ring-border-subtle hover:bg-bg-elevated hover:ring-border active:bg-bg-elevated focus-visible:ring-primary/40',
   success:
-    'bg-success text-bg-dark hover:brightness-110 active:brightness-95 focus-visible:ring-success/50',
+    'bg-success text-on-primary hover:brightness-110 active:brightness-95 focus-visible:ring-success/50',
   danger:
-    'bg-danger text-white hover:brightness-110 active:brightness-95 focus-visible:ring-danger/50',
+    'bg-danger-solid text-white hover:brightness-95 active:brightness-90 focus-visible:ring-danger/50',
   warning:
-    'bg-warning text-bg-dark hover:brightness-110 active:brightness-95 focus-visible:ring-warning/50',
+    'bg-warning text-on-primary hover:brightness-110 active:brightness-95 focus-visible:ring-warning/50',
   ghost:
     'bg-transparent text-text-secondary hover:bg-bg-elevated hover:text-text-primary focus-visible:ring-primary/30',
 } as const;

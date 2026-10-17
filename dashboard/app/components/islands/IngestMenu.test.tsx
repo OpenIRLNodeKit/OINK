@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { IngestControlState } from '../../lib/api';
 import type { IngestSeries } from '../../lib/useStatusUpdate';
@@ -134,5 +134,51 @@ describe('IngestMenu', () => {
     expect(screen.getByRole('button', { name: 'Mute test' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Hide test' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Fix test' })).toBeDisabled();
+  });
+
+  it('flashes the Fix button after it is pressed', () => {
+    vi.useFakeTimers();
+    try {
+      const onRestart = vi.fn();
+      renderMenu({
+        controls: { test: control({ restartable: true }) },
+        onRestart,
+      });
+      const fix = screen.getByRole('button', { name: 'Fix test' });
+      expect(fix).not.toHaveClass('bg-warning');
+
+      fireEvent.click(fix);
+      expect(onRestart).toHaveBeenCalledWith('test');
+      expect(fix).toHaveClass('bg-warning');
+
+      act(() => vi.advanceTimersByTime(1000));
+      expect(fix).not.toHaveClass('bg-warning');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the Monitored badge legible on a selected row', () => {
+    const { rerender } = renderMenu({ selected: 'test', monitored: 'test' });
+    expect(screen.getByText('Monitored')).toHaveClass(
+      'text-on-primary',
+      'bg-white/20',
+    );
+
+    rerender(
+      <IngestMenu
+        ingests={[feed('test', 4200)]}
+        selected={null}
+        monitored="test"
+        onSelect={() => {}}
+        connected
+        controls={{}}
+        pending={null}
+        onToggleMute={() => {}}
+        onToggleVisibility={() => {}}
+        onRestart={() => {}}
+      />,
+    );
+    expect(screen.getByText('Monitored')).toHaveClass('text-primary');
   });
 });

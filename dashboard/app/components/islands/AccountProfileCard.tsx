@@ -103,7 +103,7 @@ export default function AccountProfileCard() {
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-bg-dark">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-primary text-lg font-semibold text-on-primary">
             {src ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

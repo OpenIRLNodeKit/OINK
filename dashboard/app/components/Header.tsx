@@ -77,7 +77,7 @@ export function Header({ title = 'Dashboard' }: HeaderProps) {
       <div className="flex items-center gap-2 sm:gap-4">
         <div className="flex items-center gap-2.5">
           <div
-            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-[11px] font-semibold text-bg-dark"
+            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-[11px] font-semibold text-on-primary"
           >
             {user?.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -26,6 +26,8 @@
   --color-primary: oklch(0.623 0.216 8.6);
   --color-primary-hover: oklch(0.68 0.207 8.4);
   --color-primary-soft: oklch(0.623 0.216 8.6 / 0.12);
+  /* Ink on filled accent buttons. Stays dark on every theme; text-bg-dark flips light in "neutral". */
+  --color-on-primary: oklch(0.14 0.012 264);
   --color-bg-dark: oklch(0.144 0.014 264);
   --color-bg-card: oklch(0.176 0.016 264);
   --color-bg-sidebar: oklch(0.158 0.014 264);
@@ -33,7 +35,7 @@
   --color-bg-overlay: oklch(0.22 0.02 264);
   --color-text-primary: oklch(0.958 0.005 260);
   --color-text-secondary: oklch(0.705 0.012 260);
-  --color-text-faint: oklch(0.5 0.012 260);
+  --color-text-faint: oklch(0.62 0.012 260);
   --color-border: oklch(0.265 0.014 264);
   --color-border-subtle: oklch(0.22 0.012 264);
   --color-success: oklch(0.695 0.165 152);
@@ -41,6 +43,8 @@
   --color-warning: oklch(0.78 0.15 79);
   --color-warning-soft: oklch(0.78 0.15 79 / 0.12);
   --color-danger: oklch(0.637 0.203 23);
+  /* Filled danger buttons need AA with white ink; --color-danger is tuned for text on dark cards. */
+  --color-danger-solid: oklch(0.58 0.203 23);
   --color-danger-soft: oklch(0.637 0.203 23 / 0.12);
 }
 
@@ -55,7 +59,7 @@
   --color-bg-overlay: oklch(0.228 0.022 262);
   --color-text-primary: oklch(0.955 0.006 252);
   --color-text-secondary: oklch(0.71 0.012 260);
-  --color-text-faint: oklch(0.51 0.013 260);
+  --color-text-faint: oklch(0.62 0.013 260);
   --color-border: oklch(0.27 0.016 262);
   --color-border-subtle: oklch(0.225 0.014 262);
 }
@@ -71,7 +75,7 @@
   --color-bg-overlay: oklch(0.216 0.006 265);
   --color-text-primary: oklch(0.96 0.002 264);
   --color-text-secondary: oklch(0.72 0.006 264);
-  --color-text-faint: oklch(0.54 0.007 264);
+  --color-text-faint: oklch(0.62 0.007 264);
   --color-border: oklch(0.28 0.005 264);
   --color-border-subtle: oklch(0.24 0.005 264);
 }
@@ -88,7 +92,7 @@
   --color-bg-overlay: oklch(0.87 0.04 84);
   --color-text-primary: oklch(0.28 0.022 60);
   --color-text-secondary: oklch(0.44 0.02 60);
-  --color-text-faint: oklch(0.56 0.025 60);
+  --color-text-faint: oklch(0.48 0.025 60);
   --color-border: oklch(0.8 0.03 75);
   --color-border-subtle: oklch(0.86 0.03 80);
   --color-success: oklch(0.6 0.15 152);
@@ -113,7 +117,7 @@
   --color-bg-overlay: oklch(0.236 0.022 78);
   --color-text-primary: oklch(0.96 0.008 85);
   --color-text-secondary: oklch(0.72 0.02 85);
-  --color-text-faint: oklch(0.52 0.02 85);
+  --color-text-faint: oklch(0.62 0.02 85);
   --color-border: oklch(0.27 0.02 78);
   --color-border-subtle: oklch(0.225 0.018 78);
 }
@@ -129,7 +133,7 @@
   --color-bg-overlay: oklch(0.232 0.022 358);
   --color-text-primary: oklch(0.96 0.005 40);
   --color-text-secondary: oklch(0.72 0.015 40);
-  --color-text-faint: oklch(0.52 0.016 40);
+  --color-text-faint: oklch(0.62 0.016 40);
   --color-border: oklch(0.27 0.018 358);
   --color-border-subtle: oklch(0.225 0.016 358);
 }
@@ -145,7 +149,7 @@
   --color-bg-overlay: oklch(0.228 0.02 78);
   --color-text-primary: oklch(0.955 0.008 88);
   --color-text-secondary: oklch(0.715 0.02 88);
-  --color-text-faint: oklch(0.52 0.018 88);
+  --color-text-faint: oklch(0.62 0.018 88);
   --color-border: oklch(0.268 0.018 78);
   --color-border-subtle: oklch(0.222 0.016 78);
 }

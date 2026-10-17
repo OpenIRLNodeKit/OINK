@@ -188,7 +188,7 @@ describe('IngestManager', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
     const confirm = screen.getByRole('button', { name: 'Confirm?' });
-    expect(confirm).toHaveClass('bg-danger');
+    expect(confirm).toHaveClass('bg-danger-solid');
     expect(confirm).not.toHaveClass('text-danger');
     await user.click(confirm);
 

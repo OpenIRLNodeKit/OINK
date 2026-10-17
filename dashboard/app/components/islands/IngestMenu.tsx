@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+import { useEffect, useRef, useState } from 'react';
 import type { IngestControlState } from '../../lib/api';
 import type { IngestSeries } from '../../lib/useStatusUpdate';
 import { Badge, Button } from '../ui';
@@ -105,6 +106,22 @@ export default function IngestMenu({
 }: IngestMenuProps) {
   const ordered = sortIngests(ingests);
   const activeCount = ordered.filter((i) => i.ready).length;
+  const [fixing, setFixing] = useState<string | null>(null);
+  const fixTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (fixTimer.current) clearTimeout(fixTimer.current);
+    },
+    [],
+  );
+
+  const handleFix = (id: string) => {
+    onRestart(id);
+    setFixing(id);
+    if (fixTimer.current) clearTimeout(fixTimer.current);
+    fixTimer.current = setTimeout(() => setFixing(null), 1000);
+  };
 
   if (ordered.length === 0) {
     return (
@@ -157,10 +174,21 @@ export default function IngestMenu({
                   />
                   <span className="truncate">{ingest.id}</span>
                   {ingest.id === monitored && (
-                    <Badge tone="primary">Monitored</Badge>
+                    <Badge
+                      tone="primary"
+                      className={
+                        isActive
+                          ? 'bg-white/20 text-on-primary ring-white/30'
+                          : undefined
+                      }
+                    >
+                      Monitored
+                    </Badge>
                   )}
                 </span>
-                <span className="shrink-0 text-xs tabular opacity-80">
+                <span
+                  className={`shrink-0 text-xs tabular ${isActive ? '' : 'opacity-80'}`}
+                >
                   {ingest.ready ? `${ingest.bitrate} kbps` : 'offline'}
                 </span>
               </Button>
@@ -199,13 +227,15 @@ export default function IngestMenu({
                 <EyeIcon hidden={hidden} />
               </Button>
               <Button
-                variant="secondary"
+                variant={fixing === ingest.id ? 'warning' : 'secondary'}
                 size="sm"
                 className="px-2"
-                onClick={() => onRestart(ingest.id)}
+                onClick={() => handleFix(ingest.id)}
                 disabled={!canFix || pending === `${ingest.id}:restart`}
                 aria-label={`Fix ${ingest.id}`}
-                title={canFix ? 'Restart source (fix glitches)' : 'Not restartable'}
+                title={
+                  canFix ? 'Restart source (fix glitches)' : 'Not restartable'
+                }
               >
                 <FixIcon />
               </Button>

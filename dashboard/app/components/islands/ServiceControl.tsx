@@ -169,7 +169,7 @@ export default function ServiceControl({ service, label, configurable = false }:
               <button
                 onClick={saveConfig}
                 disabled={saving}
-                className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary-hover disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-sm rounded-lg bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Saving...' : 'Save & Close'}
               </button>
