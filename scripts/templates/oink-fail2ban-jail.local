@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # OpenIRLNodeKit: fail2ban jail for dashboard-login brute force.
 #
 # Bans a client that fails the dashboard login maxretry times in findtime.

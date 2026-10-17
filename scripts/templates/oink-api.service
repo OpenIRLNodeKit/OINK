@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 [Unit]
 Description=OINK dashboard API / log server (:8082, loopback only)
 After=network-online.target oink-nginx.service oink-obs.service

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // ExecStartPost shim: restore the OBS virtual camera after oink-obs (re)starts,
 // but only when it was on before the teardown (see vcam-state.js). obs-websocket
 // isn't listening the instant OBS execs, so retry until it answers or the

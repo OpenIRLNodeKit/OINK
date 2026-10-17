@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 [Unit]
 Description=OINK NOALBS automatic OBS scene switcher
 After=oink-display.service oink-obs.service oink-mediamtx.service

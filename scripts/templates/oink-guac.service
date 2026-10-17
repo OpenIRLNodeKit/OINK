@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 [Unit]
 Description=Guacamole-lite tunnel (OBS remote desktop)
 # guacd is the distro unit (apt package), bound to 127.0.0.1:4822.

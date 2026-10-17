@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+# SPDX-License-Identifier: AGPL-3.0-or-later
 [Unit]
 Description=OpenIRLNodeKit virtual display (Xorg :99, dummy)
 After=network.target

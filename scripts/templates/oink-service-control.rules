@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
+// SPDX-License-Identifier: AGPL-3.0-or-later
 // OpenIRLNodeKit: allow the runtime user to start/stop/restart exactly the
 // services the dashboard controls — nothing more. No unit-file management
 // (enable/disable/edit) and no other units are granted, so a compromise of the
