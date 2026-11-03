@@ -7,6 +7,9 @@
 
 **The open-source, self-hosted OBS cloud streaming server.**
 
+> [!NOTE]  
+> This project is still under testing and has bugs. Thank you for testing, please report issues.
+
 OpenIRLNodeKit (OINK) sits between your mobile or desktop and platforms like Twitch, YouTube, and Kick — providing stream-drop protection, a headless OBS instance you control from a modern browser.
 
 ```text
