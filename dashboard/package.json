@@ -2,7 +2,7 @@
   "name": "oink-dashboard",
   "private": true,
   "type": "module",
-  "version": "26.10.0",
+  "version": "26.11.0",
   "engines": {
     "node": ">=22.12.0"
   },
