@@ -25,6 +25,7 @@ OpenIRLNodeKit (OINK) sits between your mobile or desktop and platforms like Twi
 - Fresh **Ubuntu 24.04 LTS** server install
   - VM or bare metal
 - 6+ CPU cores, 8+ GB RAM recommended
+- A GPU is optional, but highly recommended
 
 ### Install
 
@@ -44,25 +45,21 @@ cd OINK
 sudo python3 oink.py setup
 ```
 
-One command does everything — **host phase** (headless OBS, virtual display, VNC, Guacamole remote desktop) then **native stack** (dashboard, Nginx, MediaMTX ingest, NOALBS) — all as systemd units.
-
-A few notes:
-
-- Needs **Node.js ≥ 22.12.0** (Ubuntu 24.04's stock Node 18 is too old). `oink setup` auto-installs Node 22 from NodeSource when missing.
-- Add `-y` to auto-confirm prompts, `--dry-run` to preview. Fully **idempotent** — safe to re-run.
-- First install takes ~3 minutes; every secret (ingest key, admin password, obs-websocket password) is **generated per install** unless you provide it via `-c oink.conf` (below).
-
 ### When it's done
 
-| You get | At |
-|---|---|
-| Web dashboard | `http://<YOUR-IP>:8305` |
-| Remote OBS (full UI) | `http://<YOUR-IP>:8081` (sign in to the dashboard first) |
-| RTMP ingest | `rtmp://<YOUR-IP>:1935/live/{stream_key}/{label}` |
-| SRT ingest | `srt://<YOUR-IP>:8890?streamid=publish:live/{stream_key}/{label}` |
-| SRTLA ingest (BELABOX/Moblin) | `srtla://<YOUR-IP>:5000?streamid=publish:live/{stream_key}/{label}` |
+```
+════════════════════════════════════════════════════════════
+   All checks passed ✓
+   Dashboard:     http://<YOUR-IP>:8305
+   Username:      admin
+   Set password:  http://<YOUR-IP>:8305/setup#token=<one-time-token>
+   Remote OBS:    http://<YOUR-IP>:8305/remote/ (sign in to the dashboard first)
+   RTMP Ingest:   rtmp://<YOUR-IP>:1935/live/{stream_key}/{label}
+   SRT Ingest:    srt://<YOUR-IP>:8890?streamid=publish:live/{stream_key}/{label}
+════════════════════════════════════════════════════════════
+```
 
-The one-time **admin password is printed at the end of setup** — change it on first login. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
+The **admin username is `admin`**. Set its password from the one-time setup link printed at the end of setup. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
 
 ### Commands
 
@@ -81,7 +78,7 @@ Pass `-c FILE` to load `OINK_*` settings from a config
 file. Copy [`oink.conf.example`](oink.conf.example), set the values you want, then:
 
 ```bash
-sudo python3 oink.py -c oink.conf setup -y
+sudo python3 oink.py -c oink.conf setup -y --force
 ```
 
 Without `-c`, every value is generated/default.
