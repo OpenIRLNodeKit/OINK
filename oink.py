@@ -424,8 +424,9 @@ def cmd_users(args) -> None:
 
     if args.users_command == "list":
         if not _users_path(cfg).exists():
-            info(cfg, "No users.json yet — the admin account is created on first "
-                      "oink-api start with OINK_ADMIN_PASSWORD set.")
+            info(cfg, "No users.json yet — the admin account is created when setup is "
+                      "completed at the dashboard, or on first oink-api start with "
+                      "OINK_ADMIN_PASSWORD set.")
             raise SystemExit(0)
         try:
             store = json.loads(_users_path(cfg).read_text())

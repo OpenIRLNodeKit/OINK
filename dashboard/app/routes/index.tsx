@@ -20,7 +20,12 @@ export default function Index() {
     let cancelled = false;
     void fetchAuthStatus()
       .then(async (status) => {
-        if (cancelled || !status.enabled || !status.ok) return;
+        if (cancelled) return;
+        if (status.setupRequired) {
+          window.location.replace('/setup');
+          return;
+        }
+        if (!status.enabled || !status.ok) return;
         const target = await postLoginTarget(Boolean(status.user?.mustChangePassword));
         if (!cancelled) window.location.replace(target);
       })

@@ -85,6 +85,23 @@ describe('index (root login page)', () => {
     }
   });
 
+  it('sends a visitor with a pending first-run setup to /setup', async () => {
+    const restore = stubLocation();
+    vi.mocked(fetchAuthStatus).mockResolvedValue({
+      ok: false,
+      enabled: true,
+      user: null,
+      setupRequired: true,
+      setupUsername: 'admin',
+    });
+    try {
+      render(<Index />);
+      await vi.waitFor(() => expect(window.location.replace).toHaveBeenCalledWith('/setup'));
+    } finally {
+      restore();
+    }
+  });
+
   it('keeps an unauthenticated visitor on the form', async () => {
     const restore = stubLocation();
     vi.mocked(fetchAuthStatus).mockResolvedValue({ ok: false, enabled: true, user: null });

@@ -24,7 +24,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const url = require('url');
-const { AccountService, ROLES, canReadLogStream } = require('./auth');
+const { AccountService, ROLES, BOOTSTRAP_USERNAME, canReadLogStream } = require('./auth');
 const ingest = require('./ingest');
 const dashboardSettings = require('./settings');
 const backup = require('./backup');
@@ -136,11 +136,11 @@ function rateLimit(req, res, bucketKey, opts) {
 
 // --- Control-plane auth (accounts + roles) ---
 //
-// Enforced only when OINK_ADMIN_PASSWORD and OINK_SESSION_SECRET are set: the
-// stack phase provisions both into ~/oink/stack/api.env (0600), loaded by
-// oink-api.service via EnvironmentFile. With neither set (local dev / mocked
-// Playwright server) every request is treated as a local admin, so the auth
-// flow does not change its shape.
+// Enforced when OINK_SESSION_SECRET and either a bootstrap password, a one-time
+// setup token, or an existing user store is present: the stack phase provisions
+// api.env (0600), loaded by oink-api.service via EnvironmentFile. With none set
+// (local dev / mocked Playwright server) every request is treated as a local
+// admin, so the auth flow does not change its shape.
 // OINK_TRUSTED_PROXIES signals that a fronting proxy (own TLS terminator /
 // Cloudflare Tunnel) sits in front of nginx: the real client IP then arrives in
 // X-Forwarded-For and the session cookie is marked Secure. Unset = unchanged.
@@ -150,6 +150,7 @@ const accounts = new AccountService({
   sessionSecret: process.env.OINK_SESSION_SECRET || '',
   adminPassword: process.env.OINK_ADMIN_PASSWORD || '',
   adminPasswordOrigin: process.env.OINK_ADMIN_PASSWORD_ORIGIN || 'generated',
+  setupToken: process.env.OINK_SETUP_TOKEN || '',
   secureCookies: TRUST_PROXY,
 });
 const AUTH_ENABLED = accounts.enabled;
@@ -237,15 +238,16 @@ const server = http.createServer(async (req, res) => {
 
   // CSRF: reject state-changing calls that did not originate from the dashboard.
   // SameSite=Strict already blocks cross-site cookie attachment; this is the
-  // second layer. Origin/Referer host must match ours, and (except for login,
-  // which bootstraps the session) the X-CSRF-Token header must match the token
-  // signed into the session. Skipped entirely when auth is disabled (local dev /
-  // mocked Playwright server), where no session exists to protect.
+  // second layer. Origin/Referer host must match ours, and (except for login
+  // and first-run setup, which have no session yet) the X-CSRF-Token header must
+  // match the token signed into the session. Skipped entirely when auth is
+  // disabled (local dev / mocked Playwright server), where no session exists to
+  // protect.
   if (AUTH_ENABLED && isUnsafeMethod(req.method)) {
     if (!checkOrigin(req)) {
       return sendError(res, 403, 'Cross-origin request refused');
     }
-    if (pathname !== '/api/auth/login') {
+    if (pathname !== '/api/auth/login' && pathname !== '/api/auth/setup') {
       const expected = accounts.csrfFor(req);
       if (!expected || !checkCsrf(req, expected)) {
         return sendError(res, 403, 'Invalid CSRF token');
@@ -278,14 +280,38 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, enabled: true, user });
   }
 
+  // POST /api/auth/setup {token, username, password} — one-time first-run admin
+  // setup. Unauthenticated by design: the operator holds the token printed by
+  // setup. CSRF is exempt (no session yet); Origin is still checked above.
+  if (pathname === '/api/auth/setup' && req.method === 'POST') {
+    if (!rateLimit(req, res, `setup:${clientIp}`, RATE_LIMIT.login)) return;
+    try {
+      const { token, username, password } = await readJson(req);
+      const user = accounts.completeSetup(
+        String(token || ''),
+        String(username || ''),
+        String(password || ''),
+      );
+      accounts.issueSession(user, res);
+      auditReq(user, 'completed setup');
+      return json(res, 200, { ok: true, user });
+    } catch (e) {
+      return sendError(res, 400, e instanceof Error ? e.message : 'Setup failed');
+    }
+  }
+
   // GET /api/auth/status — lets the UI decide whether to require a login and
   // which role the signed-in user holds.
   if (pathname === '/api/auth/status' && req.method === 'GET') {
     const user = AUTH_ENABLED ? accounts.currentUser(req) : null;
+    const setup = AUTH_ENABLED && accounts.setupRequired
+      ? { setupRequired: true, setupUsername: BOOTSTRAP_USERNAME }
+      : {};
     return json(res, 200, {
       ok: AUTH_ENABLED ? Boolean(user) : false,
       enabled: AUTH_ENABLED,
       user,
+      ...setup,
     });
   }
 

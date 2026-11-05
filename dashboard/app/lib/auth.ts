@@ -18,6 +18,8 @@ export interface AuthStatus {
   ok: boolean;
   enabled: boolean;
   user: AuthUser | null;
+  setupRequired?: boolean;
+  setupUsername?: string;
 }
 
 export interface AuthResult {
@@ -53,6 +55,8 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
       ok?: unknown;
       enabled?: unknown;
       user?: unknown;
+      setupRequired?: unknown;
+      setupUsername?: unknown;
     } | null;
     // Any non-conforming response means "auth is not enforced" (e.g. the mocked
     // Playwright server, which has no /api/auth/*). Only an explicit 401 from a
@@ -60,10 +64,18 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
     if (!data || typeof data.ok !== 'boolean' || typeof data.enabled !== 'boolean') {
       return { ok: false, enabled: false, user: null };
     }
+    const setup =
+      data.setupRequired === true
+        ? {
+            setupRequired: true,
+            setupUsername:
+              typeof data.setupUsername === 'string' ? data.setupUsername : 'admin',
+          }
+        : {};
     if (!data.ok || !data.enabled) {
-      return { ok: data.ok, enabled: data.enabled, user: null };
+      return { ok: data.ok, enabled: data.enabled, user: null, ...setup };
     }
-    return { ok: true, enabled: true, user: parseUser(data.user) };
+    return { ok: true, enabled: true, user: parseUser(data.user), ...setup };
   } catch {
     return { ok: false, enabled: false, user: null };
   } finally {
@@ -92,6 +104,32 @@ export async function login(username: string, password: string): Promise<AuthRes
     };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : 'Sign-in failed' };
+  }
+}
+
+export async function completeSetup(
+  token: string,
+  username: string,
+  password: string,
+): Promise<AuthResult> {
+  try {
+    const res = await fetch('/api/auth/setup', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, username, password }),
+    });
+    const data = (await res.json().catch(() => null)) as JsonBody | null;
+    if (res.ok && data?.ok) return { ok: true, user: parseUser(data.user) };
+    return {
+      ok: false,
+      error:
+        typeof data?.error === 'string' && data.error
+          ? data.error
+          : `Setup failed (HTTP ${res.status})`,
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Setup failed' };
   }
 }
 

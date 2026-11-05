@@ -48,7 +48,9 @@ export default function AuthLayout() {
     void fetchAuthStatusRaw()
       .then(async (status) => {
         if (cancelled) return;
-        if (status.enabled && !status.ok) {
+        if (status.setupRequired) {
+          window.location.replace('/setup');
+        } else if (status.enabled && !status.ok) {
           window.location.replace('/');
         } else if (status.enabled && status.ok && status.user?.mustChangePassword) {
           window.location.replace('/change-password');

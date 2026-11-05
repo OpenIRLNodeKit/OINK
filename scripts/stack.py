@@ -828,12 +828,13 @@ def section5_install_stack(cfg: SetupConfig) -> None:
 
     # ── Control-plane auth secrets (dashboard login, api.env) ────────────────
     # log-server.js gates the /api/* control plane behind a signed session-cookie
-    # login when BOTH secrets are present. OINK_ADMIN_PASSWORD is the one-time
-    # bootstrap seed for the admin account (hashed by log-server on first boot,
-    # never re-read after); OINK_SESSION_SECRET signs the HMAC session cookies.
-    # Provision both into a 0600 env file the unit loads via EnvironmentFile.
-    # Honour operator-supplied overrides; keep existing generated values stable
-    # across re-runs so setups don't rotate credentials.
+    # login when OINK_SESSION_SECRET is present and an admin account exists, a
+    # bootstrap password is provided, or a one-time setup token is pending.
+    # Default: no admin password; a one-time setup token lets the operator choose
+    # the password at /setup in the browser. OINK_SESSION_SECRET signs the HMAC
+    # session cookies. Provision both into a 0600 env file the unit loads via
+    # EnvironmentFile. Honour OINK_ADMIN_PASSWORD for unattended installs; keep
+    # existing generated values stable across re-runs.
     api_env = stack_home / "api.env"
     env_values: dict[str, str] = {}
     if api_env.exists():
@@ -845,16 +846,21 @@ def section5_install_stack(cfg: SetupConfig) -> None:
         except OSError:
             env_values = {}
     admin_pw = os.environ.get("OINK_ADMIN_PASSWORD") or env_values.get("OINK_ADMIN_PASSWORD")
-    if admin_pw:
-        origin = "provided"
-    else:
-        admin_pw = secrets.token_urlsafe(18)
-        origin = "generated"
+    # A setup token is only useful until the first account exists. Keep an
+    # existing token stable while setup is still pending, and drop it once done.
+    setup_token = ""
+    if not admin_pw and not _has_dashboard_users(cfg):
+        setup_token = env_values.get("OINK_SETUP_TOKEN") or secrets.token_urlsafe(32)
     session_secret = env_values.get("OINK_SESSION_SECRET") or secrets.token_urlsafe(32)
-    # OINK_ADMIN_PASSWORD_ORIGIN records whether the seed was operator-chosen
-    # ("provided") or auto-generated ("generated"). log-server.js sets the first-login
-    # mustChangePassword flag from it: generated seeds are shown once and must be
-    # rotated, operator-provided seeds are trusted.
+    if admin_pw:
+        auth_lines = (
+            f"OINK_ADMIN_PASSWORD={admin_pw}\n"
+            f"OINK_ADMIN_PASSWORD_ORIGIN=provided\n"
+        )
+    elif setup_token:
+        auth_lines = f"OINK_SETUP_TOKEN={setup_token}\n"
+    else:
+        auth_lines = ""
     # Platform stream outputs are seeded to the API (via systemd EnvironmentFile)
     # on the first boot after install; the dashboard owns them afterwards. Keep
     # any already-provisioned value when the current run doesn't supply one.
@@ -874,15 +880,14 @@ def section5_install_stack(cfg: SetupConfig) -> None:
     trusted = ",".join(p.strip() for p in trusted.split(",") if p.strip())
     trusted_lines = f"OINK_TRUSTED_PROXIES={trusted}\n" if trusted else ""
     api_env_lines = (
-        f"OINK_ADMIN_PASSWORD={admin_pw}\n"
-        f"OINK_ADMIN_PASSWORD_ORIGIN={origin}\n"
+        f"{auth_lines}"
         f"OINK_SESSION_SECRET={session_secret}\n"
         f"OINK_WEB_PORT={resolve_web_port(cfg)}\n"
         f"{trusted_lines}"
         f"{seed_lines}"
     )
     if cfg.dry_run:
-        info(cfg, "  → Would provision api.env (dashboard control-plane auth: admin seed + session secret)")
+        info(cfg, "  → Would provision api.env (dashboard control-plane auth + session secret)")
     else:
         api_env_changed = not api_env.exists() or api_env.read_text() != api_env_lines
         api_env.write_text(api_env_lines)
@@ -1063,18 +1068,25 @@ def _api_env_value(cfg: SetupConfig, key: str) -> str | None:
     return None
 
 
-def _dashboard_password_line(cfg: SetupConfig) -> str | None:
-    """Return the summary-box line for the bootstrap seed, or None to omit.
+def _has_dashboard_users(cfg: SetupConfig) -> bool:
+    """True when users.json contains at least one dashboard account."""
+    try:
+        store = json.loads((cfg.stack_dir / "users.json").read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(store, dict) and bool(store.get("users"))
 
-    Only auto-generated seeds are shown: that is the one-time credential the
-    operator could not have known. Operator-provided seeds are the operator's
-    own secret and are not re-printed into setup output.
+def _dashboard_setup_url(cfg: SetupConfig, ip: str) -> str | None:
+    """Return the one-time browser setup URL, or None when setup is complete.
+
+    The token is generated instead of a bootstrap password on installs where the
+    operator did not provide OINK_ADMIN_PASSWORD. It is consumed once an account
+    exists, so a re-run never prints an unusable link.
     """
-    pw = _api_env_value(cfg, "OINK_ADMIN_PASSWORD")
-    origin = _api_env_value(cfg, "OINK_ADMIN_PASSWORD_ORIGIN")
-    if not pw or origin != "generated":
+    token = _api_env_value(cfg, "OINK_SETUP_TOKEN")
+    if not token or _has_dashboard_users(cfg):
         return None
-    return f"  Dashboard pw:  {pw}  (one-time — change it at first login)"
+    return f"http://{ip}:{resolve_web_port(cfg)}/setup#token={token}"
 
 
 def section6_verify(cfg: SetupConfig) -> None:
@@ -1137,9 +1149,10 @@ def section6_verify(cfg: SetupConfig) -> None:
         info(cfg, "  All checks passed \u2713")
         web_port = resolve_web_port(cfg)
         info(cfg, f"  Dashboard:     http://{ip}:{web_port}")
-        dash_pw = _dashboard_password_line(cfg)
-        if dash_pw:
-            info(cfg, dash_pw)
+        info(cfg, "  Username:      admin (editable at the setup link)")
+        setup_url = _dashboard_setup_url(cfg, ip)
+        if setup_url:
+            info(cfg, f"  Set password:  {setup_url}")
         info(cfg, f"  Remote OBS:    http://{ip}:{web_port}/remote/ (sign in to the dashboard first)")
         info(cfg, f"  RTMP Ingest:   rtmp://{ip}:1935/live/{{stream_key}}/{{label}}")
         info(cfg, f"  SRT Ingest:    srt://{ip}:8890?streamid=publish:live/{{stream_key}}/{{label}}")

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Tests for stack.py env plumbing: dashboard-password gating + ingest seed."""
+"""Tests for stack.py env plumbing: dashboard setup gating + ingest seed."""
 
 from __future__ import annotations
 
@@ -28,28 +28,31 @@ def _run_capture(calls, key="SeededKey_0123456789abc"):
     return fake
 
 
-def test_generated_password_is_shown(cfg, tmp_path):
+def test_generated_setup_token_is_shown(cfg, tmp_path):
     c = _cfg_with_api_env(
         tmp_path, cfg,
-        "OINK_ADMIN_PASSWORD=abc\nOINK_ADMIN_PASSWORD_ORIGIN=generated\n",
+        "OINK_SETUP_TOKEN=abc\n",
     )
-    assert "abc" in stack._dashboard_password_line(c)
+    assert stack._dashboard_setup_url(c, "10.0.0.1") == (
+        f"http://10.0.0.1:{stack.resolve_web_port(c)}/setup#token=abc"
+    )
 
 
-def test_provided_password_is_hidden(cfg, tmp_path):
+def test_provided_password_has_no_setup_url(cfg, tmp_path):
     c = _cfg_with_api_env(
         tmp_path, cfg,
         "OINK_ADMIN_PASSWORD=abc\nOINK_ADMIN_PASSWORD_ORIGIN=provided\n",
     )
-    assert stack._dashboard_password_line(c) is None
+    assert stack._dashboard_setup_url(c, "10.0.0.1") is None
 
 
-def test_blank_password_is_hidden(cfg, tmp_path):
+def test_setup_url_is_hidden_once_an_account_exists(cfg, tmp_path):
     c = _cfg_with_api_env(
         tmp_path, cfg,
-        "OINK_ADMIN_PASSWORD=\nOINK_ADMIN_PASSWORD_ORIGIN=generated\n",
+        "OINK_SETUP_TOKEN=abc\n",
     )
-    assert stack._dashboard_password_line(c) is None
+    (tmp_path / "users.json").write_text('{"users":[{"username":"admin"}]}\n')
+    assert stack._dashboard_setup_url(c, "10.0.0.1") is None
 
 
 def test_bootstrap_ingest_passes_env_seed(cfg, monkeypatch):

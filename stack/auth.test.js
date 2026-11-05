@@ -142,6 +142,39 @@ test('dev mode (no credentials, no accounts) is not misconfigured', () => {
   assert.strictEqual(svc.misconfigured, false);
 });
 
+test('setup token creates the admin and is consumed', () => {
+  const stackDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oink-auth-'));
+  const svc = new AccountService({
+    stackDir,
+    sessionSecret: 'test-secret-0123456789',
+    setupToken: 'setup-token-123',
+  });
+  assert.strictEqual(svc.setupRequired, true);
+  assert.strictEqual(svc.enabled, true);
+  assert.throws(
+    () => svc.completeSetup('wrong-token', 'admin', 'new-password-123'),
+    /Invalid setup token/,
+  );
+  assert.strictEqual(svc.authenticate('admin', 'new-password-123'), null);
+  assert.throws(() => svc.completeSetup('setup-token-123', 'admin', 'short'), /at least 8/);
+  assert.throws(
+    () => svc.completeSetup('setup-token-123', 'BAD_NAME', 'new-password-123'),
+    /Username/,
+  );
+
+  const user = svc.completeSetup('setup-token-123', 'Streamer', 'new-password-123');
+  assert.strictEqual(user.username, 'streamer');
+  assert.strictEqual(user.role, ROLES.ADMIN);
+  assert.strictEqual(user.mustChangePassword, false);
+  assert.strictEqual(svc.setupRequired, false);
+  assert.ok(svc.authenticate('streamer', 'new-password-123'));
+
+  assert.throws(
+    () => svc.completeSetup('setup-token-123', 'other', 'another-password'),
+    /already completed/,
+  );
+});
+
 test('password change revokes outstanding sessions', () => {
   const { svc, res, headers, user } = makeService(false);
   svc.issueSession(user, res);

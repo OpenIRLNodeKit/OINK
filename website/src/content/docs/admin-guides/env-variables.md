@@ -6,7 +6,7 @@ title: Environment Variables
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OINK_ADMIN_PASSWORD` | generated + printed | Admin bootstrap password |
+| `OINK_ADMIN_PASSWORD` | unset — set at first visit | Optional admin bootstrap password for unattended installs (username `admin`). If unset, setup prints a one-time `/setup#token=…` link where you choose the username and password. |
 | `OINK_OBS_USER` | `obsuser` | Unprivileged account OBS + the stack run as |
 | `OINK_INGEST_KEY` | generated | Keyed ingest prefix `live/<key>/` |
 | `OINK_PRIMARY_PLATFORM` | `twitch` | `twitch` \| `youtube` \| `kick` — the platform OBS streams to |
@@ -24,7 +24,7 @@ seed-once / first-boot-only and ignore a changed value on an already-set-up node
 
 | Setting | Why |
 |---|---|
-| `OINK_ADMIN_PASSWORD` | A bootstrap seed. The admin login is hashed into `users.json` on the first API start; later config re-runs don't touch it. Change a login with `sudo oink users reset`. |
+| `OINK_ADMIN_PASSWORD` | Optional bootstrap seed. The first admin login is hashed into `users.json` on the first API start, or created from the one-time `/setup` page when the password is unset. Later config re-runs don't touch it. Change a login with `sudo oink users reset`. |
 | `OINK_INGEST_KEY` | The ingest profile is created once. An existing `ingest.json` is kept on re-runs; apply a new key by deleting it (`rm ~/obsuser/oink/stack/ingest.json`) or in the dashboard (Settings → Stream Settings → rotate). |
 | `OINK_OBS_USER` | The runtime account and every path are baked at the first setup. Set before the first install. |
 | `OINK_SESSION_SECRET` | Not configurable — always generated and preserved. |

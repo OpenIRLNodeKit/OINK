@@ -51,7 +51,7 @@ sudo python3 oink.py setup
 ════════════════════════════════════════════════════════════
    All checks passed ✓
    Dashboard:     http://<YOUR-IP>:8305
-   Username:      admin
+   Username:      admin (editable at the setup link)
    Set password:  http://<YOUR-IP>:8305/setup#token=<one-time-token>
    Remote OBS:    http://<YOUR-IP>:8305/remote/ (sign in to the dashboard first)
    RTMP Ingest:   rtmp://<YOUR-IP>:1935/live/{stream_key}/{label}
@@ -59,7 +59,7 @@ sudo python3 oink.py setup
 ════════════════════════════════════════════════════════════
 ```
 
-The **admin username is `admin`**. Set its password from the one-time setup link printed at the end of setup. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
+The default **admin username is `admin`** — choose your own on the setup page. Set the password from the one-time setup link printed at the end of setup. Your secret stream key lives in dashboard **Settings → Stream Settings** (view or rotate it there).
 
 ### Commands
 

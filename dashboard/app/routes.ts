@@ -10,6 +10,7 @@ import {
 export default [
   layout("routes/public.tsx", [
     index("routes/index.tsx"),
+    route("setup", "routes/setup.tsx"),
     route("change-password", "routes/change-password.tsx"),
   ]),
   layout("routes/auth.tsx", [

@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   changePassword,
+  completeSetup,
   createUser,
   fetchAuthStatus,
   listUsers,
@@ -119,6 +120,47 @@ describe('auth client', () => {
     await expect(login('nobody', 'wrong')).resolves.toEqual({
       ok: false,
       error: 'Invalid username or password',
+    });
+  });
+
+  it('reports a pending first-run setup', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        mockResponse({
+          ok: false,
+          enabled: true,
+          user: null,
+          setupRequired: true,
+          setupUsername: 'admin',
+        }),
+      ),
+    );
+    await expect(fetchAuthStatus()).resolves.toEqual({
+      ok: false,
+      enabled: true,
+      user: null,
+      setupRequired: true,
+      setupUsername: 'admin',
+    });
+  });
+
+  it('completes setup with the token, username, and chosen password', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(mockResponse({ ok: true, user: ADMIN_USER }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(
+      completeSetup('setup-token', 'streamer', 'new-password'),
+    ).resolves.toEqual({
+      ok: true,
+      user: ADMIN_USER,
+    });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/auth/setup');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body)).toEqual({
+      token: 'setup-token',
+      username: 'streamer',
+      password: 'new-password',
     });
   });
 

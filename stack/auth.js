@@ -13,8 +13,11 @@
  *
  * Auth (and therefore login) is ONLY enforced when BOTH of these are set in the
  * unit environment (scripts/stack.py provisions both into 0600 api.env):
- *     OINK_ADMIN_PASSWORD   — never re-read after the first-boot bootstrap seed
  *     OINK_SESSION_SECRET   — HMAC key for signing session cookies
+ *     OINK_ADMIN_PASSWORD   — optional bootstrap password (unattended installs)
+ *     OINK_SETUP_TOKEN      — one-time token for in-browser admin setup
+ * OINK_ADMIN_PASSWORD and OINK_SETUP_TOKEN are never re-read after the admin
+ * account is created.
  *
  * The module is the auth seam for a future control-plane: swapping the
  * password verifier for a service-issued-token verifier here leaves every route
@@ -99,6 +102,12 @@ function verifyPassword(password, encoded) {
     maxmem: SCRYPT_PARAMS.maxmem,
   });
   return candidate.length === spec.hash.length && crypto.timingSafeEqual(candidate, spec.hash);
+}
+
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a || ''));
+  const right = Buffer.from(String(b || ''));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
 // --- User store ------------------------------------------------------------
@@ -200,23 +209,64 @@ function csrfCookie(value, maxAgeSeconds, { secure = false } = {}) {
 // --- Account service -------------------------------------------------------
 
 class AccountService {
-  constructor({ stackDir, sessionSecret, adminPassword, adminPasswordOrigin = 'generated', secureCookies = false }) {
+  constructor({ stackDir, sessionSecret, adminPassword, adminPasswordOrigin = 'generated', setupToken = '', secureCookies = false }) {
     this.stackDir = stackDir;
     this.sessionSecret = sessionSecret || '';
     this.adminPassword = adminPassword || '';
     this.adminPasswordOrigin = adminPasswordOrigin === 'provided' ? 'provided' : 'generated';
+    this.setupToken = setupToken || '';
     this.secureCookies = secureCookies === true;
     this._store = loadStore(stackDir);
     this._bootstrapAdmin();
     this._applyPendingResets();
     const hasStoreUsers = this._store.users.length > 0;
+    // In-browser first-run setup: no accounts yet and no operator-provided
+    // bootstrap password, so the one-time setup URL creates the admin.
+    this.setupRequired = !hasStoreUsers && !this.adminPassword && Boolean(this.setupToken);
     // Dev/mock mode: no credentials and no accounts at all — log-server treats
     // every request as a local admin (Playwright mocks / local dev).
-    const devMode = !this.sessionSecret && !this.adminPassword && !hasStoreUsers;
-    this.enabled = !devMode && Boolean(this.sessionSecret) && (hasStoreUsers || Boolean(this.adminPassword));
+    const devMode = !this.sessionSecret && !this.adminPassword && !this.setupToken && !hasStoreUsers;
+    this.enabled = !devMode && Boolean(this.sessionSecret) &&
+      (hasStoreUsers || Boolean(this.adminPassword) || this.setupRequired);
     // Accounts or a secret exist but auth cannot run (e.g. OINK_SESSION_SECRET was
     // removed). Must fail closed: never silently fall back to an open local admin.
     this.misconfigured = !devMode && !this.enabled;
+  }
+
+  completeSetup(token, username, password) {
+    // Re-read: a backup restore or another process may have created the admin
+    // while this API was running. Never overwrite an existing account.
+    this._store = loadStore(this.stackDir);
+    if (this._store.users.length > 0) throw new UserError('Setup already completed');
+    if (!this.setupToken || !safeEqual(token, this.setupToken)) {
+      throw new UserError('Invalid setup token');
+    }
+    const normalized = String(username || BOOTSTRAP_USERNAME).trim().toLowerCase();
+    if (!USERNAME_RE.test(normalized)) {
+      throw new UserError('Username must be 1–33 chars: lowercase letters, digits, hyphens');
+    }
+    if (!verifyPasswordParam(password)) {
+      throw new UserError(`Password must be at least ${MIN_PASSWORD_LEN} characters`);
+    }
+    const user = {
+      id: crypto.randomUUID(),
+      username: normalized,
+      role: ROLES.ADMIN,
+      salt: '',
+      passwordHash: hashPassword(password),
+      // The operator chose this password on the setup page: no forced rotation.
+      mustChangePassword: false,
+      createdAt: new Date().toISOString(),
+      disabled: false,
+    };
+    this._store.users.push(user);
+    saveStore(this.stackDir, this._store);
+    // Consume the token in this process; the persisted token in api.env can no
+    // longer be used because a user now exists.
+    this.setupToken = '';
+    this.setupRequired = false;
+    console.log(`[auth] completed setup; created admin user "${normalized}"`);
+    return toPublicUser(user);
   }
 
   _bootstrapAdmin() {
