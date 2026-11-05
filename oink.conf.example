@@ -4,7 +4,7 @@
 # defaults / are generated.
 
 # ── Dashboard auth ─────────────────────────────────────────────────────────────
-export OINK_ADMIN_PASSWORD=        # admin bootstrap password; generated+printed at setup if unset
+export OINK_ADMIN_PASSWORD=        # optional admin password (username admin); unset = choose both at the one-time /setup link
 
 # ── Runtime account ────────────────────────────────────────────────────────────
 export OINK_OBS_USER=obsuser       # unprivileged account OBS + stack run as; set before first setup

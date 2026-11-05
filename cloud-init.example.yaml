@@ -10,20 +10,21 @@ write_files:
       set -euo pipefail
 
       # Clone into an empty directory.
-      git clone https://github.com/OpenIRLNodeKit/OINK /opt/OpenIRLNodeKit
+      sudo git clone https://github.com/OpenIRLNodeKit/OINK /opt/OpenIRLNodeKit
 
       # Move the config into the repo and lock it down.
-      mv /tmp/oink.conf /opt/OpenIRLNodeKit/oink.conf
-      chmod 600 /opt/OpenIRLNodeKit/oink.conf
+      sudo mv /tmp/oink.conf /opt/OpenIRLNodeKit/oink.conf
+      sudo chmod 600 /opt/OpenIRLNodeKit/oink.conf
 
       # Install: host phase + native stack, non-interactive.
-      python3 /opt/OpenIRLNodeKit/oink.py -c /opt/OpenIRLNodeKit/oink.conf setup -y
+      sudo python3 /opt/OpenIRLNodeKit/oink.py -c /opt/OpenIRLNodeKit/oink.conf setup -y --force
 
   - path: /tmp/oink.conf
     owner: root:root
     permissions: '0600'
     content: |
-      # Dashboard auth
+      # Dashboard auth: set a password for unattended installs. Leave blank to
+      # choose the username and password from the one-time /setup link.
       export OINK_ADMIN_PASSWORD=change-me-to-a-strong-password
 
       # Runtime account (must be set before the first setup)
