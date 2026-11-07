@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import pathlib
 import shutil
@@ -23,6 +24,7 @@ def _make_cfg(cfg, tmp_path, **kwargs):
     obs_cfg.mkdir(parents=True, exist_ok=True)
     return dataclasses.replace(
         cfg, stack_dir=stack_dir, obs_cfg=obs_cfg,
+        obs_ws=obs_cfg / "plugin_config" / "obs-websocket",
         dep_dir=tmp_path / "deps", recording_dir=tmp_path / "recs", **kwargs)
 
 
@@ -38,6 +40,22 @@ def _seed(cfg):
     (cfg.obs_cfg / "basic" / "scenes" / "oink.json").write_text('{"canvases": []}')
     (cfg.obs_cfg / "global.ini").write_text("[General]\n")
 
+def _append_legacy_member(archive: pathlib.Path, path: str, data: bytes) -> None:
+    """Add a member + manifest entry, mimicking archives made before exclusion."""
+    with zipfile.ZipFile(archive) as zf:
+        items = {n: zf.read(n) for n in zf.namelist()}
+    manifest = json.loads(items["manifest.json"])
+    manifest["files"].append({
+        "path": path,
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "mode": "0600",
+    })
+    items[path] = data
+    items["manifest.json"] = json.dumps(manifest).encode()
+    with zipfile.ZipFile(archive, "w") as zf:
+        for name, body in items.items():
+            zf.writestr(name, body)
+
 
 @pytest.fixture
 def no_systemctl(monkeypatch):
@@ -52,7 +70,7 @@ class _Done(subprocess.CompletedProcess):
         super().__init__([], 0, stdout="", stderr="")
 
 
-def test_round_trip(cfg, tmp_path, no_systemctl):
+def test_round_trip(cfg, tmp_path, no_systemctl, capsys):
     c = _make_cfg(cfg, tmp_path, auto_yes=True)
     _seed(c)
     out = backup.create_backup(c, tmp_path / "b.zip")
@@ -62,11 +80,76 @@ def test_round_trip(cfg, tmp_path, no_systemctl):
     shutil.rmtree(c.obs_cfg)
     backup.restore_backup(c, out)
 
+    assert not (c.stack_dir / "users.json").exists(), "accounts must not restore"
+    env = (c.stack_dir / "api.env").read_text()
+    assert "OINK_SESSION_SECRET=" in env
+    assert "OINK_ADMIN_PASSWORD=" in env
+    assert "Dashboard login: admin / " in capsys.readouterr().out
     assert json.loads((c.stack_dir / "ingest.json").read_text())["key"] == "SeededKey_0123456789abc"
     assert (c.stack_dir / "mediamtx.yml").exists()
     assert (c.stack_dir / "noalbs" / ".env").read_text().startswith("TWITCH_BOT_OAUTH")
     assert (c.obs_cfg / "basic" / "scenes" / "oink.json").exists()
     assert (c.obs_cfg / "global.ini").exists()
+
+def test_restore_keeps_current_accounts_and_session_secret(cfg, tmp_path, no_systemctl):
+    c = _make_cfg(cfg, tmp_path, auto_yes=True)
+    _seed(c)
+    out = backup.create_backup(c, tmp_path / "b.zip")
+    # Credentials change after the backup: restore must not undo that.
+    (c.stack_dir / "users.json").write_text('{"users": [{"username": "castle"}]}')
+    (c.stack_dir / "api.env").write_text("OINK_SESSION_SECRET=current-secret\n")
+
+    backup.restore_backup(c, out)
+
+    assert "castle" in (c.stack_dir / "users.json").read_text()
+    env = (c.stack_dir / "api.env").read_text()
+    assert "OINK_SESSION_SECRET=current-secret" in env
+    assert "OINK_ADMIN_PASSWORD" not in env
+
+def test_restore_keeps_current_obs_websocket_password(cfg, tmp_path, no_systemctl):
+    c = _make_cfg(cfg, tmp_path, auto_yes=True)
+    _seed(c)
+    # The archive carries the source box's OBS password in the NOALBS config.
+    (c.stack_dir / "noalbs" / "config.json").write_text(
+        json.dumps({"software": {"password": "source-pw"}, "switcher": {}}))
+    out = backup.create_backup(c, tmp_path / "b.zip")
+
+    ws = c.obs_ws / "password"
+    ws.parent.mkdir(parents=True, exist_ok=True)
+    ws.write_text("current-pw\n")
+    backup.restore_backup(c, out)
+
+    data = json.loads((c.stack_dir / "noalbs" / "config.json").read_text())
+    assert data["software"]["password"] == "current-pw"
+
+def test_restore_localizes_ingest_urls(cfg, tmp_path, no_systemctl):
+    c = _make_cfg(cfg, tmp_path, auto_yes=True)
+    _seed(c)
+    scene = c.obs_cfg / "basic" / "scenes" / "oink.json"
+    scene.write_text(json.dumps({"sources": [
+        {"settings": {"url": "srt://192.168.8.248:8890?streamid=read:live/Key/irl&latency=2000000"}},
+        {"settings": {"url": "srt://example.com:9000?streamid=read:other"}},
+    ]}))
+    out = backup.create_backup(c, tmp_path / "b.zip")
+
+    shutil.rmtree(c.obs_cfg)
+    backup.restore_backup(c, out)
+
+    data = json.loads(scene.read_text())
+    assert data["sources"][0]["settings"]["url"] == (
+        "srt://127.0.0.1:8890?streamid=read:live/Key/irl&latency=2000000")
+    assert data["sources"][1]["settings"]["url"] == "srt://example.com:9000?streamid=read:other"
+
+def test_legacy_archive_accounts_are_skipped(cfg, tmp_path, no_systemctl):
+    c = _make_cfg(cfg, tmp_path, auto_yes=True)
+    _seed(c)
+    out = backup.create_backup(c, tmp_path / "b.zip")
+    _append_legacy_member(out, "stack/users.json", b'{"users": [{"username": "old"}]}')
+
+    backup.restore_backup(c, out)
+
+    assert "castle" not in (c.stack_dir / "users.json").read_text()
+    assert (c.stack_dir / "users.json").read_text() == '{"users": []}'
 
 
 def test_manifest_records_sha256_and_mode(cfg, tmp_path):
@@ -76,9 +159,9 @@ def test_manifest_records_sha256_and_mode(cfg, tmp_path):
     with zipfile.ZipFile(out) as zf:
         manifest = json.loads(zf.read("manifest.json"))
     paths = {e["path"]: e for e in manifest["files"]}
-    assert "stack/users.json" in paths
-    assert len(paths["stack/users.json"]["sha256"]) == 64
-    assert paths["stack/users.json"]["mode"].isdigit()
+    assert "stack/users.json" not in paths, "accounts must not be archived"
+    assert len(paths["stack/ingest.json"]["sha256"]) == 64
+    assert paths["stack/ingest.json"]["mode"].isdigit()
 
 
 def test_empty_box_bails(cfg, tmp_path):
@@ -89,11 +172,11 @@ def test_empty_box_bails(cfg, tmp_path):
 
 def test_missing_sources_skipped(cfg, tmp_path):
     c = _make_cfg(cfg, tmp_path)
-    (c.stack_dir / "users.json").write_text("{}")
+    (c.stack_dir / "ingest.json").write_text("{}")
     out = backup.create_backup(c, tmp_path / "b.zip")
     with zipfile.ZipFile(out) as zf:
         manifest = json.loads(zf.read("manifest.json"))
-    assert [e["path"] for e in manifest["files"]] == ["stack/users.json"]
+    assert [e["path"] for e in manifest["files"]] == ["stack/ingest.json"]
 
 
 def test_pre_restore_copies_are_not_backed_up(cfg, tmp_path):
@@ -138,7 +221,7 @@ def _tamper(archive: pathlib.Path, tmp_path: pathlib.Path) -> None:
     extract = tmp_path / "extract"
     with zipfile.ZipFile(archive) as zf:
         zf.extractall(extract)
-    (extract / "stack" / "users.json").write_text('{"users": ["evil"]}')
+    (extract / "stack" / "ingest.json").write_text('{"evil": true}')
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in sorted(extract.rglob("*")):
             if p.is_file():
@@ -153,7 +236,7 @@ def test_tamper_refused_then_forced(cfg, tmp_path, no_systemctl):
     with pytest.raises(SystemExit):
         backup.restore_backup(c, out)
     backup.restore_backup(c, out, force=True)
-    assert "evil" in (c.stack_dir / "users.json").read_text()
+    assert "evil" in (c.stack_dir / "ingest.json").read_text()
 
 
 def test_restore_restarts_only_active_units(cfg, tmp_path, monkeypatch):
@@ -228,4 +311,6 @@ def test_encrypted_round_trip(cfg, tmp_path, monkeypatch):
     shutil.rmtree(c.stack_dir)
     shutil.rmtree(c.obs_cfg)
     backup.restore_backup(c, out)
-    assert (c.stack_dir / "users.json").exists()
+    assert not (c.stack_dir / "users.json").exists()
+    assert (c.stack_dir / "ingest.json").exists()
+    assert (c.stack_dir / "api.env").exists()

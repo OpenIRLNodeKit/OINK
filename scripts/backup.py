@@ -3,11 +3,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """backup.py — `oink backup` / `oink restore`.
 
-Zip archive of the box state that `oink setup` does NOT recreate: dashboard
-users, the ingest stream key, control-plane secrets, NOALBS config, and the OBS
-scene collections/profiles. Regenerable files (nginx.conf, web build, binaries)
-and large media (recordings) are deliberately excluded; uploaded assets are
-opted in with `--assets`.
+Zip archive of the box state that `oink setup` does NOT recreate: the ingest
+stream key, control-plane secrets, NOALBS config, and the OBS scene
+collections/profiles. Dashboard accounts (`users.json`) are deliberately
+excluded: credentials stay on the box and restore never replaces the target's
+accounts. Regenerable files (nginx.conf, web build, binaries) and large media
+(recordings) are deliberately excluded; uploaded assets are opted in with
+`--assets`.
 
 Archive layout (see _iter_sources for the exact set):
 
@@ -27,6 +29,8 @@ import hashlib
 import json
 import os
 import pathlib
+import re
+import secrets
 import tempfile
 import time
 import zipfile
@@ -62,7 +66,18 @@ def _load_set(include_toggles: set[str] | None = None) -> list[dict]:
     except (OSError, ValueError) as e:
         raise SystemExit(f"error: backup set unreadable ({_SET_FILE}): {e}") from e
     return [e for e in data.get("entries", [])
-            if not e.get("toggle") or e.get("toggle") in include_toggles]
+            if e.get("backup") is not False
+            and (not e.get("toggle") or e.get("toggle") in include_toggles)]
+
+
+def _keep_current_arcs() -> set[str]:
+    """Arc names of `backup: false` entries: never written, never restored."""
+    try:
+        data = json.loads(_SET_FILE.read_text())
+    except (OSError, ValueError):
+        return set()
+    return {f"{e['root']}/{e['rel']}" for e in data.get("entries", [])
+            if e.get("backup") is False and e.get("rel")}
 
 
 def _sha256_file(path: pathlib.Path) -> str:
@@ -149,6 +164,7 @@ def _notify_exclusions(cfg: SetupConfig, included: set[str]) -> None:
     """Tell the operator what a backup deliberately leaves out."""
     paths = {"assets": cfg.dep_dir, "recordings": cfg.recording_dir}
     skipped = [f"{k} ({p})" for k, p in paths.items() if k not in included]
+    warn(cfg, "  → not included: dashboard accounts (users.json)")
     if skipped:
         warn(cfg, "  → not included: " + ", ".join(skipped))
 
@@ -274,9 +290,122 @@ def restore_backup(cfg: SetupConfig, archive: pathlib.Path, *, force: bool = Fal
             work.unlink(missing_ok=True)
 
 
+_AUTH_KEYS = ("OINK_SESSION_SECRET", "OINK_ADMIN_PASSWORD",
+              "OINK_ADMIN_PASSWORD_ORIGIN", "OINK_SETUP_TOKEN")
+
+
+def _read_api_env(cfg: SetupConfig) -> list[str]:
+    try:
+        return (cfg.stack_dir / "api.env").read_text().splitlines()
+    except OSError:
+        return []
+
+
+_SRT_INGEST_RE = re.compile(r"^srt://[^/?#]+:8890(?=[/?#]|$)", re.IGNORECASE)
+
+
+def _localize_urls(value):
+    """Point restored OINK SRT read URLs at this box's loopback MediaMTX."""
+    if isinstance(value, str):
+        return _SRT_INGEST_RE.sub("srt://127.0.0.1:8890", value)
+    if isinstance(value, list):
+        return [_localize_urls(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _localize_urls(v) for k, v in value.items()}
+    return value
+
+
+def _localize_scene_file(path: pathlib.Path) -> None:
+    """Rewrite the source box's ingest host in a restored OBS scene config.
+
+    Only `srt://<host>:8890` URLs are touched (this box's MediaMTX); external
+    SRT feeds and other ports stay as the backup recorded them.
+    """
+    try:
+        data = json.loads(path.read_text())
+        path.write_text(json.dumps(_localize_urls(data)))
+    except (OSError, ValueError):
+        pass
+
+
+def _sync_noalbs_obs_password(cfg: SetupConfig) -> None:
+    """Keep this install's OBS websocket password in the restored NOALBS config.
+
+    The archive carries the source box's password in `software.password`, which
+    never matches this OBS. Missing password file or unparseable config: leave
+    the restored file untouched.
+    """
+    try:
+        pw = (cfg.obs_ws / "password").read_text().strip()
+    except OSError:
+        return
+    if not pw:
+        return
+    cfg_json = cfg.stack_dir / "noalbs" / "config.json"
+    try:
+        data = json.loads(cfg_json.read_text())
+    except (OSError, ValueError):
+        return
+    if not isinstance(data, dict) or not isinstance(data.get("software"), dict):
+        return
+    if data["software"].get("password") == pw:
+        return
+    data["software"]["password"] = pw
+    cfg_json.write_text(json.dumps(data, indent=2) + "\n")
+    cfg_json.chmod(0o600)
+
+
+def _restore_auth_env(cfg: SetupConfig, previous: list[str], *,
+                      had_users: bool) -> str | None:
+    """Keep this install's credentials; never apply the archive's auth lines.
+
+    Returns the generated admin password when the target had no accounts
+    (fresh-box restore), so the caller can print it once.
+    """
+    def key(line: str) -> str:
+        return line.split("=", 1)[0].strip()
+
+    kept = [ln for ln in previous if key(ln) in _AUTH_KEYS]
+    restored = [ln for ln in _read_api_env(cfg) if key(ln) not in _AUTH_KEYS]
+    if not restored:
+        # Archive carried no api.env: keep this install's non-auth settings too.
+        restored = [ln for ln in previous if key(ln) not in _AUTH_KEYS]
+    session_secret = next(
+        (ln.split("=", 1)[1] for ln in kept if ln.startswith("OINK_SESSION_SECRET=")), "",
+    )
+    if not session_secret:
+        session_secret = secrets.token_urlsafe(32)
+        kept.insert(0, f"OINK_SESSION_SECRET={session_secret}")
+
+    password = None
+    if had_users:
+        auth = kept
+    else:
+        # Fresh box: the archive has no credentials by design, so print a new
+        # one-shot password instead of sending the operator back to /setup.
+        password = secrets.token_urlsafe(12)
+        auth = [f"OINK_SESSION_SECRET={session_secret}",
+                f"OINK_ADMIN_PASSWORD={password}"]
+
+    env_file = cfg.stack_dir / "api.env"
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    env_file.write_text("\n".join(auth + restored) + "\n")
+    env_file.chmod(0o600)
+    return password
+
+
 def _apply(cfg: SetupConfig, zf: zipfile.ZipFile, manifest: dict) -> None:
+    keep = _keep_current_arcs()
+    # Snapshot credentials before any file is renamed or overwritten.
+    previous_env = _read_api_env(cfg)
+    had_users = stack._has_dashboard_users(cfg)  # noqa: SLF001
+
     entries = [e for e in manifest["files"] if _safe_member(e.get("path", ""))
                and _target_for(cfg, e["path"]) is not None]
+    kept_arcs = [e["path"] for e in entries if e["path"] in keep]
+    entries = [e for e in entries if e["path"] not in keep]
+    if kept_arcs:
+        info(cfg, "  → Keeping current install accounts: " + ", ".join(kept_arcs))
     if not entries:
         bail(cfg, "archive carries no restorable files")
 
@@ -322,6 +451,15 @@ def _apply(cfg: SetupConfig, zf: zipfile.ZipFile, manifest: dict) -> None:
         mode = modes.get(arc)
         if mode:
             os.chmod(target, int(mode, 8))
+        if arc.startswith("obs/basic/scenes/") and arc.endswith(".json"):
+            _localize_scene_file(target)
+
+    fresh_password = _restore_auth_env(cfg, previous_env, had_users=had_users)
+    _sync_noalbs_obs_password(cfg)
+    if fresh_password:
+        info(cfg, "  → No accounts in the current install: seeded a new admin")
+        print(f"\n  Dashboard login: admin / {fresh_password}")
+        info(cfg, "  → Shown once. Change it after signing in.\n")
 
     # Observed dirs may have nested files not enumerated in the manifest digest
     # list? They are all enumerated, but chown the whole touched trees anyway.

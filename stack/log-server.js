@@ -593,8 +593,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   // POST /api/backup/restore — upload an archive and apply the dashboard-safe
-  // subset. api.env is skipped (needs root-level unit restarts); see the note
-  // in the response so the operator can run `sudo oink restore` for full fidelity.
+  // subset. api.env is skipped (needs root-level unit restarts) and accounts are
+  // never restored from an archive; see the note in the response.
   if (pathname === '/api/backup/restore' && req.method === 'POST') {
     const user = requireRole(req, res, [ROLES.ADMIN]);
     if (!user) return;
@@ -654,7 +654,7 @@ const server = http.createServer(async (req, res) => {
       failed: result.failed,
       restarted: active,
       note: result.skipped.length
-        ? 'api.env skipped — run `sudo oink restore <file>` for secrets/session state.'
+        ? 'Accounts stay on this install; api.env was skipped. Run `sudo oink restore <file>` only if you intend to replace secrets.'
         : '',
     });
     return;

@@ -96,6 +96,8 @@ function collect(opts = {}) {
   const files = [];
   const missing = [];
   for (const entry of entries) {
+    // Accounts are host identity, not archive content: never transfer them.
+    if (entry.backup === false) continue;
     if (entry.toggle && !opts[entry.toggle]) continue;
     const base = roots()[entry.root];
     if (entry.kind === 'file') {
@@ -303,10 +305,55 @@ function inspectArchive(archive) {
   };
 }
 
+// A backup carries the source box's ingest address in restored OBS scene
+// configs (irl_source settings.url). Re-point OINK SRT read URLs at loopback so
+// the restored scene still pulls from *this* box's MediaMTX. Other SRT URLs
+// (external feeds, other ports) are left alone.
+const SRT_INGEST_RE = /^srt:\/\/[^/?#]+:8890(?=[/?#]|$)/i;
+
+function localizeIngestUrls(value) {
+  if (typeof value === 'string') {
+    return value.replace(SRT_INGEST_RE, 'srt://127.0.0.1:8890');
+  }
+  if (Array.isArray(value)) return value.map(localizeIngestUrls);
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value)) value[key] = localizeIngestUrls(value[key]);
+  }
+  return value;
+}
+
+function localizeSceneFile(dest) {
+  try {
+    const data = JSON.parse(fs.readFileSync(dest, 'utf-8'));
+    fs.writeFileSync(dest, JSON.stringify(localizeIngestUrls(data)));
+  } catch {
+    // Not scene JSON / unreadable: keep the restored bytes as-is.
+  }
+}
+
 function writeInto(src, dest, meta) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.copyFileSync(src, dest);
   if (meta.mode) fs.chmodSync(dest, parseInt(meta.mode, 8));
+}
+
+// The restored NOALBS config carries the source box's OBS websocket password,
+// which never matches this install's OBS. Re-assert the local one so restored
+// stream control still authenticates. Missing file/password: leave it alone.
+function syncObsPassword(dest) {
+  try {
+    const pw = fs.readFileSync(
+      path.join(OBS_CONFIG_DIR, 'plugin_config/obs-websocket/password'), 'utf-8',
+    ).trim();
+    if (!pw) return;
+    const data = JSON.parse(fs.readFileSync(dest, 'utf-8'));
+    if (!data || !data.software || typeof data.software !== 'object') return;
+    if (data.software.password === pw) return;
+    data.software.password = pw;
+    fs.writeFileSync(dest, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+  } catch {
+    // Best effort: keep the restored config rather than failing the restore.
+  }
 }
 
 /**
@@ -318,6 +365,9 @@ async function restoreArchive(archive) {
   const modeByPath = new Map(manifest.files.map((f) => [f.path, f]));
   const cliOnly = new Set(
     loadSet().filter((e) => e.restore === 'cli-only').map(arcOf),
+  );
+  const keepCurrent = new Set(
+    loadSet().filter((e) => e.backup === false).map(arcOf),
   );
 
   const names = listMembers(archive);
@@ -340,6 +390,12 @@ async function restoreArchive(archive) {
     for (const arc of allowed) {
       const meta = modeByPath.get(arc);
       if (!meta) continue; // directory member
+      // Legacy archives still carry accounts; restoring them would replace this
+      // install's credentials, so keep the current file.
+      if (keepCurrent.has(arc)) {
+        skipped.push(arc);
+        continue;
+      }
       const root = arc.split('/')[0];
       if (cliOnly.has(arc)) {
         skipped.push(arc);
@@ -350,6 +406,10 @@ async function restoreArchive(archive) {
       try {
         await extractToFile(archive, arc, staged, meta.sha256);
         writeInto(staged, dest, meta);
+        if (arc === 'stack/noalbs/config.json') syncObsPassword(dest);
+        if (arc.startsWith('obs/basic/scenes/') && arc.endsWith('.json')) {
+          localizeSceneFile(dest);
+        }
         restored.push(arc);
         mark(root);
       } catch (e) {

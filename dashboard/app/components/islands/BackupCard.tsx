@@ -84,7 +84,7 @@ export default function BackupCard() {
   return (
     <Card
       title="Backup & Restore"
-      description="Download box state (users, stream key, NOALBS, OBS scenes/profiles) or restore an archive."
+      description="Download box state (stream key, NOALBS, OBS scenes/profiles) or restore an archive. Dashboard accounts are never included."
     >
       <div className="space-y-4 p-5">
         <div className="space-y-2">

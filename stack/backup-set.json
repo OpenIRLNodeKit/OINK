@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "comment": "Canonical backup source set. Read by scripts/backup.py (CLI) and stack/backup.js (dashboard). `root` selects the base dir; `rel` is relative to it. `kind` file|dir. `toggle` entries are opt-in and skipped by the CLI. `restore: cli-only` marks files the dashboard API must not write (needs root/unit restarts it can't do).",
+  "comment": "Canonical backup source set. Read by scripts/backup.py (CLI) and stack/backup.js (dashboard). `root` selects the base dir; `rel` is relative to it. `kind` file|dir. `toggle` entries are opt-in and skipped by the CLI. `backup: false` entries are never written to archives and never restored; they stay listed so archives made before the exclusion still validate, and the target install keeps its own copy. `restore: cli-only` marks files the dashboard API must not write (needs root/unit restarts it can't do).",
   "roots": {
     "stack": "stack_dir",
     "obs": "obs_cfg",
@@ -8,7 +8,7 @@
     "recordings": "recording_dir"
   },
   "entries": [
-    { "root": "stack", "rel": "users.json", "kind": "file" },
+    { "root": "stack", "rel": "users.json", "kind": "file", "backup": false },
     { "root": "stack", "rel": "ingest.json", "kind": "file" },
     { "root": "stack", "rel": "profiles.json", "kind": "file" },
     { "root": "stack", "rel": "api.env", "kind": "file", "restore": "cli-only" },
