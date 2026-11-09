@@ -48,7 +48,7 @@ sudo python3 oink.py setup
 
 ### When it's done
 
-```
+```bash
 ════════════════════════════════════════════════════════════
    All checks passed ✓
    Dashboard:     http://<YOUR-IP>:8305
