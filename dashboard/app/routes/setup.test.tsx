@@ -26,7 +26,6 @@ const SETUP = {
   enabled: true,
   user: null,
   setupRequired: true,
-  setupUsername: 'admin',
 };
 
 describe('first-run setup page', () => {
@@ -46,8 +45,7 @@ describe('first-run setup page', () => {
         expect(screen.getByRole('button', { name: 'Set password' })).toBeEnabled(),
       );
       const username = screen.getByLabelText('Username');
-      expect((username as HTMLInputElement).value).toBe('admin');
-      await user.clear(username);
+      expect((username as HTMLInputElement).value).toBe('');
       await user.type(username, 'streamer');
       await user.type(screen.getByLabelText('Password'), 'new-password');
       await user.type(screen.getByLabelText('Confirm password'), 'new-password');

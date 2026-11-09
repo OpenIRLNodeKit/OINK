@@ -92,7 +92,6 @@ describe('index (root login page)', () => {
       enabled: true,
       user: null,
       setupRequired: true,
-      setupUsername: 'admin',
     });
     try {
       render(<Index />);

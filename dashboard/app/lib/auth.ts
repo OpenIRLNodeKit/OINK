@@ -19,7 +19,6 @@ export interface AuthStatus {
   enabled: boolean;
   user: AuthUser | null;
   setupRequired?: boolean;
-  setupUsername?: string;
 }
 
 export interface AuthResult {
@@ -56,7 +55,6 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
       enabled?: unknown;
       user?: unknown;
       setupRequired?: unknown;
-      setupUsername?: unknown;
     } | null;
     // Any non-conforming response means "auth is not enforced" (e.g. the mocked
     // Playwright server, which has no /api/auth/*). Only an explicit 401 from a
@@ -65,13 +63,7 @@ export async function fetchAuthStatus(): Promise<AuthStatus> {
       return { ok: false, enabled: false, user: null };
     }
     const setup =
-      data.setupRequired === true
-        ? {
-            setupRequired: true,
-            setupUsername:
-              typeof data.setupUsername === 'string' ? data.setupUsername : 'admin',
-          }
-        : {};
+      data.setupRequired === true ? { setupRequired: true } : {};
     if (!data.ok || !data.enabled) {
       return { ok: data.ok, enabled: data.enabled, user: null, ...setup };
     }

@@ -58,7 +58,6 @@ export default function LoginForm({
           type="text"
           name="username"
           autoComplete="username"
-          placeholder="admin"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           aria-invalid={error ? 'true' : undefined}

@@ -13,7 +13,7 @@ function readSetupToken(): string {
 
 export default function Setup() {
   const [token] = useState(readSetupToken);
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -30,7 +30,6 @@ export default function Setup() {
           window.location.replace(status.ok ? '/dashboard' : '/');
           return;
         }
-        if (status.setupUsername) setUsername(status.setupUsername);
         setReady(true);
       })
       .catch(() => setReady(true));
@@ -89,7 +88,6 @@ export default function Setup() {
                   id="setup-username"
                   type="text"
                   autoComplete="username"
-                  placeholder="admin"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required

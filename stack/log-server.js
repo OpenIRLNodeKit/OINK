@@ -305,7 +305,7 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/auth/status' && req.method === 'GET') {
     const user = AUTH_ENABLED ? accounts.currentUser(req) : null;
     const setup = AUTH_ENABLED && accounts.setupRequired
-      ? { setupRequired: true, setupUsername: BOOTSTRAP_USERNAME }
+      ? { setupRequired: true }
       : {};
     return json(res, 200, {
       ok: AUTH_ENABLED ? Boolean(user) : false,

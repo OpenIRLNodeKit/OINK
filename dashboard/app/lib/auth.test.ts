@@ -132,7 +132,6 @@ describe('auth client', () => {
           enabled: true,
           user: null,
           setupRequired: true,
-          setupUsername: 'admin',
         }),
       ),
     );
@@ -141,7 +140,6 @@ describe('auth client', () => {
       enabled: true,
       user: null,
       setupRequired: true,
-      setupUsername: 'admin',
     });
   });
 
