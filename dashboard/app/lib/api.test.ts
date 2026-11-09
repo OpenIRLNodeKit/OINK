@@ -6,6 +6,7 @@ import {
   deleteAsset,
   deleteRecording,
   getDefaultPluginStatus,
+  getDiskUsage,
   getIngestControls,
   getIngestProfiles,
   getIrlSourceStatus,
@@ -398,6 +399,28 @@ describe('api client', () => {
     expect(url).toBe('/api/config/mediamtx');
     expect(init.method).toBe('PUT');
     expect(JSON.parse(String(init.body)).content).toBe('# new');
+  });
+
+  it('loads filesystem usage for the settings card and banner', async () => {
+    const disks = [
+      {
+        label: 'Assets · Recordings',
+        paths: ['/home/obsuser/dependencies'],
+        total: 100,
+        used: 84,
+        free: 16,
+        percent: 84,
+      },
+    ];
+    const fetchMock = mockFetchOnce({ ok: true, disks });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(getDiskUsage()).resolves.toEqual(disks);
+    expect(fetchMock).toHaveBeenCalledWith('/api/disk');
+  });
+
+  it('throws when disk usage returns an error', async () => {
+    vi.stubGlobal('fetch', mockFetchOnce({ ok: false, error: 'disk down' }));
+    await expect(getDiskUsage()).rejects.toThrow('disk down');
   });
 
   it('lists OBS assets', async () => {

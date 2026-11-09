@@ -5,18 +5,16 @@
 // Asset + avatar file handling for the OINK control-plane.
 //
 // Owns the single source of "here is a safe path under the assets dir" logic:
-// name sanitization, MIME mapping, streaming uploads with a size cap, avatar
-// magic-byte sniffing, and a symlink-containment check so no path resolution
-// can escape the configured directory.
+// name sanitization, MIME mapping, streaming uploads, avatar magic-byte
+// sniffing, and a symlink-containment check so no path resolution can escape
+// the configured directory.
 
 const fs = require('fs');
 const path = require('path');
+const { freeBytes } = require('./disk');
 const { InputError } = require('./errors');
 
 const STACK_DIR = process.env.OINK_STACK_DIR || __dirname;
-
-// Upper bound for a single uploaded asset (512 MB — room for recorded clips).
-const ASSET_MAX_BYTES = 512 * 1024 * 1024;
 
 // Profile avatars are small thumbnails — 1 MB is plenty and keeps the
 // per-user store lean. Files live under stack assets so they survive rebuilds.
@@ -66,33 +64,67 @@ function mimeForAsset(name) {
   return ASSET_MIME[path.extname(name).toLowerCase()] || 'application/octet-stream';
 }
 
-// Stream the client body into an asset file, enforcing the size cap and
-// cleaning up the partial file if anything goes wrong.
-function writeAssetStream(req, dest, maxBytes = ASSET_MAX_BYTES) {
+// Stream the client body into an asset file, cleaning up the partial file if
+// anything goes wrong. `maxBytes` caps the upload (Infinity = no fixed cap) and
+// `freeDir` makes it stop when that filesystem fills, re-checked every 64 MiB.
+// Writes honour backpressure so a multi-GB upload never buffers in memory.
+function writeAssetStream(req, dest, opts = {}) {
+  const maxBytes = Number.isFinite(opts.maxBytes) ? opts.maxBytes : Infinity;
+  const freeDir = opts.freeDir || '';
+  const limitMessage = opts.limitMessage
+    || (freeDir ? 'Not enough disk space for this upload'
+      : `File exceeds the ${(maxBytes / (1024 * 1024)).toFixed(0)} MB limit`);
+  const CHECK_EVERY = 64 * 1024 * 1024;
+
   return new Promise((resolve, reject) => {
     const out = fs.createWriteStream(dest, { flags: 'w', mode: 0o644 });
     let size = 0;
+    let settled = false;
+    let nextFreeCheck = CHECK_EVERY;
+
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      out.destroy();
+      try { fs.unlinkSync(dest); } catch {}
+      req.resume(); // Drain the rest so the client can read the error response.
+      reject(err);
+    };
 
     req.on('data', (chunk) => {
+      if (settled) return;
       size += chunk.length;
-      if (size > maxBytes) {
+      let full = size > maxBytes;
+      if (!full && freeDir && size >= nextFreeCheck) {
+        nextFreeCheck += CHECK_EVERY;
+        try {
+          if (freeBytes(freeDir) <= 0) full = true;
+        } catch {
+          // statfs failed: keep the upload going; the write stream will report
+          // ENOSPC if the disk really is full.
+        }
+      }
+      if (full) {
+        fail(new InputError(limitMessage));
+        return;
+      }
+      if (!out.write(chunk)) {
         req.pause();
-        out.destroy();
-        try { fs.unlinkSync(dest); } catch {}
-        reject(new InputError(`File exceeds the ${(maxBytes / (1024 * 1024)).toFixed(0)} MB limit`));
-      } else {
-        out.write(chunk);
+        out.once('drain', () => {
+          if (!settled) req.resume();
+        });
       }
     });
-    req.on('end', () => out.end(() => resolve(size)));
-    req.on('error', (e) => {
-      try { fs.unlinkSync(dest); } catch {}
-      reject(e);
+    req.on('end', () => {
+      if (settled) return;
+      out.end(() => {
+        if (settled) return;
+        settled = true;
+        resolve(size);
+      });
     });
-    out.on('error', (e) => {
-      try { fs.unlinkSync(dest); } catch {}
-      reject(e);
-    });
+    req.on('error', fail);
+    out.on('error', fail);
   });
 }
 
@@ -130,7 +162,7 @@ function sniffAvatarType(filePath) {
 // trusted by CONTENT, not by the X-Filename extension: the magic bytes decide
 // the type. `.svg`/`.txt`/`.html` have no reliable magic and are refused (they
 // could otherwise be served as a script). Read only a 32-byte header — the
-// asset cap is 512 MB, so readFileSync here would be a memory bomb.
+// uploads can be many GB, so readFileSync here would be a memory bomb.
 
 // Only container families with more than one MIME need an entry: `expected ===
 // sniffed` already matches an exact type, so a MOV-branded file named `.mp4`
@@ -245,7 +277,6 @@ function commitAsset(tmpPath, finalPath, name) {
 }
 
 module.exports = {
-  ASSET_MAX_BYTES,
   AVATAR_DIR,
   AVATAR_MAX_BYTES,
   sanitizeAssetName,

@@ -106,6 +106,16 @@ def test_render_nginx_proxies_api_ws_with_upgrade(cfg):
     assert 'proxy_set_header Connection "upgrade";' in text
 
 
+def test_render_nginx_allows_unbounded_uploads(cfg):
+    # Assets/backups can be many GB; the default 1 MB body limit must not apply.
+    text = stack._render_nginx_cfg(
+        pathlib.Path("/srv/web"), pathlib.Path("/srv/tmp"), "obsuser", 8305)
+    for loc in ("/api/assets", "/api/backup/restore"):
+        assert f"location = {loc} {{" in text
+    assert text.count("client_max_body_size 0;") == 2
+    assert "proxy_request_buffering off;" in text
+
+
 def test_render_nginx_serves_guac_same_origin(cfg):
     # Preview + Remote OBS are proxied on the dashboard origin (no :8081/:8080
     # from the browser), so TLS deployments avoid mixed content.

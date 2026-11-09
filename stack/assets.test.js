@@ -7,6 +7,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
+const { Readable } = require('node:stream');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -226,4 +227,23 @@ test('commitAsset reports unsupported content and cleans up', () => {
   assert.strictEqual(r.ok, false);
   assert.match(r.error, /Unsupported/);
   assert.ok(!fs.existsSync(tmp));
+});
+
+test('writeAssetStream accepts an upload with no fixed size cap', async () => {
+  const dir = tmpDir();
+  const dest = path.join(dir, 'clip.mp4');
+  const req = Readable.from([Buffer.alloc(1024), Buffer.alloc(1024)]);
+  await assert.doesNotReject(assets.writeAssetStream(req, dest));
+  assert.strictEqual(fs.statSync(dest).size, 2048);
+});
+
+test('writeAssetStream rejects past maxBytes and removes the partial file', async () => {
+  const dir = tmpDir();
+  const dest = path.join(dir, 'avatar.png');
+  const req = Readable.from([Buffer.alloc(8), Buffer.alloc(8)]);
+  await assert.rejects(
+    assets.writeAssetStream(req, dest, { maxBytes: 10 }),
+    /exceeds the .* limit/,
+  );
+  assert.ok(!fs.existsSync(dest));
 });

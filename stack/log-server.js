@@ -43,6 +43,7 @@ const {
   OBS_RECORDING_DIR, isRecordingName, recordingThumbPath,
   ensureRecordingThumb, serveFileWithRange,
 } = require('./recordings');
+const disk = require('./disk');
 const {
   OBS_PLUGIN_DIR, PLUGIN_UPLOAD_MAX_BYTES, DEFAULT_PLUGINS, defaultPlugin,
   pluginInstalled, pluginLoaded, _downloadFile, _sha256File,
@@ -410,7 +411,7 @@ const server = http.createServer(async (req, res) => {
     const tmpPath = `${filePath}.up-${process.pid}-${Date.now()}`;
     try {
       fs.mkdirSync(AVATAR_DIR, { recursive: true });
-      await writeAssetStream(req, tmpPath, AVATAR_MAX_BYTES);
+      await writeAssetStream(req, tmpPath, { maxBytes: AVATAR_MAX_BYTES });
       const contentType = sniffAvatarType(tmpPath);
       if (!contentType) {
         fs.unlinkSync(tmpPath);
@@ -559,6 +560,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/disk — filesystem usage for the Settings card + low-space banner.
+  if (pathname === '/api/disk' && req.method === 'GET') {
+    const user = requireRole(req, res, [ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER]);
+    if (!user) return;
+    try {
+      json(res, 200, {
+        ok: true,
+        disks: disk.usage([
+          { label: 'Assets', dir: OBS_ASSET_DIR },
+          { label: 'Recordings', dir: OBS_RECORDING_DIR },
+          { label: 'System', dir: STACK_DIR },
+        ]),
+      });
+    } catch (e) {
+      sendServerError(res, 500, e, 'Failed to read disk usage');
+    }
+    return;
+  }
+
   // GET /api/backup?assets=&recordings= — stream a .zip download.
   if (pathname === '/api/backup' && req.method === 'GET') {
     const user = requireRole(req, res, [ROLES.ADMIN]);
@@ -601,11 +621,35 @@ const server = http.createServer(async (req, res) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'oink-upload-'));
     const file = path.join(dir, 'upload.zip');
     try {
-      await writeAssetStream(req, file, backup.MAX_ARCHIVE_BYTES);
+      const free = disk.freeBytes(dir);
+      const declared = Number(req.headers['content-length']);
+      if (Number.isFinite(declared) && declared > free) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        req.resume(); // Drain so the client can read the 413.
+        return sendError(res, 413,
+          `Not enough disk space for this backup: ${Math.ceil(declared / 1048576)} MB file, ${Math.floor(free / 1048576)} MB free`);
+      }
+      await writeAssetStream(req, file, {
+        maxBytes: free,
+        freeDir: dir,
+        limitMessage: 'Not enough disk space for this backup',
+      });
     } catch (e) {
       fs.rmSync(dir, { recursive: true, force: true });
-      if (e instanceof InputError) return sendError(res, 400, e.message);
+      if (e instanceof InputError) return sendError(res, 413, e.message);
       return sendServerError(res, 500, e, 'Failed to receive the backup');
+    }
+
+    // Restore stages each member to a temp file before copying it into place, so
+    // the archive size must fit on every filesystem the restore touches.
+    const archiveSize = fs.statSync(file).size;
+    const short = [os.tmpdir(), STACK_DIR, OBS_ASSET_DIR, OBS_RECORDING_DIR]
+      .filter((d) => fs.existsSync(d))
+      .find((d) => disk.freeBytes(d) < archiveSize);
+    if (short) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return sendError(res, 413,
+        'Not enough disk space to extract this backup — free space on the target and retry');
     }
 
     let info;
@@ -845,11 +889,22 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       fs.mkdirSync(OBS_ASSET_DIR, { recursive: true });
+      const free = disk.freeBytes(OBS_ASSET_DIR);
+      const declared = Number(req.headers['content-length']);
+      if (Number.isFinite(declared) && declared > free) {
+        req.resume(); // Drain so the client can read the 413.
+        return sendError(res, 413,
+          `Not enough disk space: ${Math.ceil(declared / 1048576)} MB file, ${Math.floor(free / 1048576)} MB free`);
+      }
       const filePath = path.join(OBS_ASSET_DIR, name);
       const tmpPath = `${filePath}.up-${process.pid}-${Date.now()}`;
       let size;
       try {
-        size = await writeAssetStream(req, tmpPath);
+        size = await writeAssetStream(req, tmpPath, {
+          maxBytes: free,
+          freeDir: OBS_ASSET_DIR,
+          limitMessage: 'Not enough disk space for this upload',
+        });
       } catch (e) {
         try { fs.unlinkSync(tmpPath); } catch {}
         throw e;
@@ -1514,7 +1569,7 @@ const server = http.createServer(async (req, res) => {
     const stage = fs.mkdtempSync(path.join(OBS_PLUGIN_DIR, '.stage-'));
     const tarFile = path.join(stage, baseName);
     return handleApi(res, async () => {
-      const size = await writeAssetStream(req, tarFile, PLUGIN_UPLOAD_MAX_BYTES);
+      const size = await writeAssetStream(req, tarFile, { maxBytes: PLUGIN_UPLOAD_MAX_BYTES });
       if (size === 0) throw new InputError('Empty upload');
       const res0 = _installPluginArchive(tarFile, null);
       auditReq(user, `uploaded plugin archive '${baseName}' -> ${res0.name}`);
@@ -2398,6 +2453,10 @@ async function seedStreamConfigFromEnv() {
     console.log(`[log-server] seeded primary platform=${primary} (key set) from OINK_* env`);
   });
 }
+
+// Uploads are unbounded, so the default 5-minute whole-request timeout would
+// kill multi-GB assets mid-transfer. Headers still have their own 60s timeout.
+server.requestTimeout = 24 * 60 * 60 * 1000;
 
 server.listen(PORT, API_BIND_HOST, () => {
   console.log(`[log-server] Listening on ${API_BIND_HOST}:${PORT}`);

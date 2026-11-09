@@ -34,9 +34,6 @@ const SET_FILE = path.join(STACK_DIR, 'backup-set.json');
 const MANIFEST_NAME = 'manifest.json';
 const FORMAT_VERSION = 1;
 
-// Restore upload cap (the route also enforces this while streaming the body).
-const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
-
 function roots() {
   return {
     stack: STACK_DIR,
@@ -435,7 +432,6 @@ async function restoreArchive(archive) {
 }
 
 module.exports = {
-  MAX_ARCHIVE_BYTES,
   stats,
   createArchive,
   inspectArchive,

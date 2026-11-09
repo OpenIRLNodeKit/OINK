@@ -9,6 +9,7 @@ import { Card } from '../ui';
 import AccountProfileCard from './AccountProfileCard';
 import BackupCard from './BackupCard';
 import ChangePasswordCard from './ChangePasswordCard';
+import DiskUsageCard from './DiskUsageCard';
 import ObsPluginsCard from './ObsPluginsCard';
 import StreamKeysForm from './StreamKeysForm';
 import StreamSettingsForm from './StreamSettingsForm';
@@ -32,6 +33,8 @@ export default function SettingsTabs() {
           <ThemeSelector />
         </div>
       </Card>
+
+      <DiskUsageCard />
 
       {canOperate && (
         <Card

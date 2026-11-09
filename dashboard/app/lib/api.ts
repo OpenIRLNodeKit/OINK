@@ -742,6 +742,28 @@ export interface AssetFile {
   mtime: number;
 }
 
+export interface DiskInfo {
+  label: string;
+  paths: string[];
+  total: number;
+  used: number;
+  free: number;
+  percent: number;
+}
+
+export async function getDiskUsage(): Promise<DiskInfo[]> {
+  const res = await fetch('/api/disk');
+  const data = (await res.json()) as {
+    ok: boolean;
+    error?: string;
+    disks: DiskInfo[];
+  };
+  if (!data.ok) {
+    throw new Error(data.error || 'Failed to load disk usage');
+  }
+  return data.disks;
+}
+
 // ── OBS stream control ──────────────────────────────────────────────────────
 
 export async function startObsStream(): Promise<void> {

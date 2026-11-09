@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router';
+import DiskWarningBanner from '../components/islands/DiskWarningBanner';
 import { Header } from '../components/Header';
 import { Sidebar } from '../components/Sidebar';
 import { AuthProvider } from '../lib/auth-context';
@@ -74,6 +75,7 @@ export default function AuthLayout() {
         <Sidebar activePage={activePage} />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <Header title={title} />
+          <DiskWarningBanner />
           <main className="flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
               <Outlet />
