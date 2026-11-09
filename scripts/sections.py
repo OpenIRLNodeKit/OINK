@@ -37,7 +37,7 @@ from constants import (
     TAR_PKGS,
     X11_PKGS,
 )
-from logui import bail, confirm, confirm_always, info, warn
+from logui import C, bail, confirm, info, warn
 from models import HostState, Phase, Result, SetupConfig
 
 # The OBS profile/canvas logic (§6c) lives in obs_profile.py so sections.py does
@@ -111,7 +111,6 @@ def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
     if all_installed:
         info(cfg, "  → Base packages already installed, skipping apt-get")
         _load_v4l2loopback(cfg)
-        _confirm_dedicated_box(cfg)
         _disable_unattended_upgrades(cfg)
         return Result(True)
 
@@ -152,7 +151,6 @@ def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
                  "&& sudo apt-get install -y nodejs")
 
     _load_v4l2loopback(cfg)
-    _confirm_dedicated_box(cfg)
     _disable_unattended_upgrades(cfg)
     return Result(True)
 
@@ -174,26 +172,46 @@ _AUTO_UPGRADES_CONF = _APT_CONF_DIR / "20auto-upgrades"
 def _confirm_dedicated_box(cfg: SetupConfig) -> None:
     """Hard consent gate: this box must be dedicated to OINK.
 
-    Unlike ordinary prompts, --yes does NOT skip this — the box being
-    OINK-only is a hard install requirement (setup disables unattended-upgrades
-    and OINK's config assumes nothing else runs here). Only --force with -y
-    bypasses the question. Refusing aborts setup.
+    Prints a random 6-character code the operator must type back. Unlike
+    ordinary prompts, --yes does NOT skip this — the box being OINK-only is a
+    hard install requirement (setup disables unattended-upgrades and OINK's
+    config assumes nothing else runs here). Only --force bypasses it. A wrong
+    code, EOF or Ctrl-C aborts setup.
     """
     if cfg.dry_run:
         info(cfg, "  [dry-run] would prompt: confirm this box is dedicated to OINK")
         return
-    info(cfg, "  OINK expects a dedicated box: nothing else should be installed or")
-    info(cfg, "  running here — other workloads can break it, and OINK's tweaks")
-    info(cfg, "  (e.g. disabling unattended-upgrades) affect the whole system.")
+    rule = f"  {C['yellow']}{'─' * 66}{C['nc']}"
+    print()
+    print(rule)
+    print(f"  {C['yellow']}{C['bold']}DEDICATED BOX REQUIRED{C['nc']}")
+    print("  Nothing else should be installed or running on this host.")
+    print("  OINK disables unattended-upgrades and assumes exclusive access;")
+    print("  other workloads can break it, and it can break other workloads.")
     if _nvidia_display_devices():
-        info(cfg, "  This box has an NVIDIA GPU: setup will also install the")
-        info(cfg, "  proprietary NVIDIA driver, so OBS renders and encodes on it.")
-    if not confirm_always(
-        cfg, "Confirm this box is dedicated to OINK — nothing else should be "
-            "installed or run on it?"
-    ):
-        bail(cfg, "Setup aborted — OINK requires a dedicated box.")
-    info(cfg, "  → box confirmed OINK-only")
+        print("  NVIDIA GPU detected: setup installs the proprietary NVIDIA driver")
+        print("  so OBS renders and encodes on it.")
+    print(rule)
+    if cfg.force:
+        print(f"  {C['green']}\u2713{C['nc']} dedicated-box check skipped (--force)")
+        print()
+        return
+    code = secrets.token_hex(3).upper()
+    print(f"  {C['bold']}Confirmation code:{C['nc']}")
+    print()
+    print(f"    {C['cyan']}{C['bold']}┌──────────┐{C['nc']}")
+    print(f"    {C['cyan']}{C['bold']}│  {C['nc']}{C['bold']}{code}{C['cyan']}{C['bold']}  │{C['nc']}")
+    print(f"    {C['cyan']}{C['bold']}└──────────┘{C['nc']}")
+    print()
+    try:
+        answer = input(f"  Type {C['cyan']}{C['bold']}the code above{C['nc']} (case-insensitive) \u2192 ")
+    except (EOFError, KeyboardInterrupt):
+        bail(cfg, "Setup aborted — no confirmation code entered.")
+    if not secrets.compare_digest(answer.strip().upper(), code):
+        print()
+        bail(cfg, "Setup aborted — wrong confirmation code.")
+    print(f"  {C['green']}\u2713{C['nc']} box confirmed OINK-only")
+    print()
 
 
 def _disable_unattended_upgrades(cfg: SetupConfig) -> None:

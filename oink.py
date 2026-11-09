@@ -71,6 +71,7 @@ from models import HostState, Phase, Result, SetupConfig
 from obs_profile import plugin_matches, section_obs_vertical
 from process import run_ok
 from sections import (
+    _confirm_dedicated_box,
     section_aitum_plugins,
     section_base_packages,
     section_dummy_display,
@@ -313,6 +314,9 @@ def _run_host_phase(args) -> None:
                 bail(cfg, "NVIDIA driver installed but not loaded yet — reboot, "
                           "then rerun: sudo oink setup")
 
+    # ── Consent gate: nothing below runs until the box is confirmed ───────────
+    _confirm_dedicated_box(cfg)
+
     for phase, section in PHASE_SECTIONS:
         if state.is_done(phase):
             fingerprint = _phase_fingerprint(cfg, phase)
@@ -515,9 +519,10 @@ def main() -> None:
     p_setup.add_argument("--dry-run", action="store_true",
                          help="Print commands without executing (verification skipped).")
     p_setup.add_argument("-y", "--yes", action="store_true",
-                         help="Auto-confirm all prompts (non-interactive mode).")
+                         help="Auto-confirm ordinary prompts; the dedicated-box "
+                              "confirmation code is still required.")
     p_setup.add_argument("--force", action="store_true",
-                         help="With -y: skip the dedicated-box confirmation "
+                         help="Skip the dedicated-box confirmation code "
                               "(assume this host is already OINK-only).")
     p_setup.add_argument("-v", "--verbose", action="store_true",
                          help="Show full apt/build output (default: quiet).")

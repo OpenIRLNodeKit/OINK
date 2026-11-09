@@ -15,6 +15,8 @@ C = {
     "red": "\033[0;31m",
     "green": "\033[0;32m",
     "yellow": "\033[0;33m",
+    "cyan": "\033[0;36m",
+    "bold": "\033[1m",
     "nc": "\033[0m",
 }
 
@@ -44,22 +46,6 @@ def confirm(cfg: SetupConfig, prompt: str) -> bool:
     if cfg.dry_run:
         info(cfg, f"  [dry-run] Would prompt: {prompt} [y/N]")
         return False
-    try:
-        answer = input(f"{prompt} [y/N]: ").strip().lower()
-        return answer in ("y", "yes")
-    except (EOFError, KeyboardInterrupt):
-        return False
-
-
-def confirm_always(cfg: SetupConfig, prompt: str) -> bool:
-    """Prompt unconditionally — --yes does NOT skip this one.
-
-    Used for consent prompts that must be explicit even in non-interactive
-    mode. Only --force (which implies -y) bypasses the question.
-    """
-    if cfg.force:
-        info(cfg, f"  → {prompt} [y/N] (--force)")
-        return True
     try:
         answer = input(f"{prompt} [y/N]: ").strip().lower()
         return answer in ("y", "yes")

@@ -7,8 +7,9 @@
 #
 # Clones the repo to /opt/OpenIRLNodeKit and runs `oink.py setup -y`. Flags after
 # `-s --` are passed to setup (e.g. `--dry-run`). Must run as root (the installer
-# drives apt + systemd). Unattended configuration goes through `OINK_*` env vars:
-#   curl -fsSL … | sudo OINK_ADMIN_PASSWORD=… OINK_INGEST_KEY=… bash -s -- -y
+# drives apt + systemd). `-y` still asks for the dedicated-box code; fully
+# unattended runs must pass `--force`. Configuration goes through `OINK_*` env vars:
+#   curl -fsSL … | sudo OINK_ADMIN_PASSWORD=… OINK_INGEST_KEY=… bash -s -- -y --force
 set -euo pipefail
 
 REPO="https://github.com/OpenIRLNodeKit/OINK.git"
@@ -34,4 +35,9 @@ else
 fi
 echo "oink-install: checkout at $(git -C "$DIR" rev-parse --short HEAD)"
 
+# stdin is the curl pipe, not a terminal: read the confirmation code from the tty
+# when one exists. Headless runs must pass --force.
+if [ -r /dev/tty ]; then
+    exec python3 "$DIR/oink.py" setup -y "$@" </dev/tty
+fi
 exec python3 "$DIR/oink.py" setup -y "$@"

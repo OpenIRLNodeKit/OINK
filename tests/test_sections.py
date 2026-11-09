@@ -189,7 +189,6 @@ def test_section_base_packages_installs_nginx_with_base_pass(tmp_path, cfg, monk
     monkeypatch.setattr(sections, "apt_get", _apt_get)
     monkeypatch.setattr(sections, "run", lambda *a, **k: runs.append(a) or _completed(0))
     monkeypatch.setattr(sections, "_load_v4l2loopback", lambda c2: None)
-    monkeypatch.setattr(sections, "_confirm_dedicated_box", lambda c2: None)
     monkeypatch.setattr(sections, "_disable_unattended_upgrades", lambda c2: None)
 
     results = sections.section_base_packages(c, HostState())
@@ -214,7 +213,6 @@ def test_section_base_packages_all_installed_skips_apt(tmp_path, cfg, monkeypatc
     monkeypatch.setattr(sections, "_node_22_ok", lambda c2: True)
     monkeypatch.setattr(sections, "apt_get", lambda *a, **k: pytest.fail("apt should not run"))
     monkeypatch.setattr(sections, "_load_v4l2loopback", lambda c2: None)
-    monkeypatch.setattr(sections, "_confirm_dedicated_box", lambda c2: None)
     monkeypatch.setattr(sections, "_disable_unattended_upgrades", lambda c2: None)
     c = cfg.__class__(**{**cfg.__dict__, "dry_run": False})
 
@@ -306,12 +304,9 @@ def test_disable_unattended_upgrades_skips_when_package_missing(tmp_path, cfg, m
     c = cfg.__class__(**{**cfg.__dict__, "dry_run": False})
     monkeypatch.setattr(sections, "_APT_CONF_DIR", _conf_dir(tmp_path))
     monkeypatch.setattr(sections, "run_ok", lambda *a, **k: False)
-    called: list = []
-    monkeypatch.setattr(sections, "confirm_always", lambda *a, **k: called.append(1) or True)
 
     sections._disable_unattended_upgrades(c)
 
-    assert not called
 
 
 def test_disable_unattended_upgrades_skips_when_already_off(tmp_path, cfg, monkeypatch):
@@ -320,12 +315,9 @@ def test_disable_unattended_upgrades_skips_when_already_off(tmp_path, cfg, monke
     (d / "20auto-upgrades").write_text('APT::Periodic::Unattended-Upgrade "0";\n')
     monkeypatch.setattr(sections, "_APT_CONF_DIR", d)
     monkeypatch.setattr(sections, "run_ok", lambda *a, **k: True)
-    called: list = []
-    monkeypatch.setattr(sections, "confirm_always", lambda *a, **k: called.append(1) or True)
 
     sections._disable_unattended_upgrades(c)
 
-    assert not called
 
 
 def test_disable_unattended_upgrades_disables_without_prompt(tmp_path, cfg, monkeypatch):
@@ -336,15 +328,12 @@ def test_disable_unattended_upgrades_disables_without_prompt(tmp_path, cfg, monk
     monkeypatch.setattr(sections, "_APT_CONF_DIR", d)
     monkeypatch.setattr(sections, "_AUTO_UPGRADES_CONF", conf)
     monkeypatch.setattr(sections, "run_ok", lambda *a, **k: True)
-    called: list = []
-    monkeypatch.setattr(sections, "confirm_always", lambda *a, **k: called.append(1) or True)
 
     sections._disable_unattended_upgrades(c)
 
     text = conf.read_text()
     assert 'APT::Periodic::Update-Package-Lists "0";' in text
     assert 'APT::Periodic::Unattended-Upgrade "0";' in text
-    assert not called
 
 
 def test_disable_unattended_upgrades_dry_run_writes_nothing(tmp_path, cfg, monkeypatch):
@@ -362,18 +351,38 @@ def test_disable_unattended_upgrades_dry_run_writes_nothing(tmp_path, cfg, monke
 
 # ── _confirm_dedicated_box ───────────────────────────────────────────────────
 
-def test_confirm_dedicated_box_refusal_aborts(cfg, monkeypatch):
-    c = cfg.__class__(**{**cfg.__dict__, "dry_run": False, "auto_yes": True, "force": False})
-    monkeypatch.setattr("builtins.input", lambda _: "n")
+def _consent_cfg(cfg, **overrides):
+    return cfg.__class__(**{**cfg.__dict__, "dry_run": False, "force": False,
+                            **overrides})
+
+
+def _fixed_code(monkeypatch, code="ABC123"):
+    monkeypatch.setattr(sections.secrets, "token_hex", lambda _: code.lower())
+
+
+def test_confirm_dedicated_box_wrong_code_aborts(cfg, monkeypatch):
+    c = _consent_cfg(cfg)
+    _fixed_code(monkeypatch)
+    monkeypatch.setattr("builtins.input", lambda _: "nope")
 
     with pytest.raises(SystemExit):
         sections._confirm_dedicated_box(c)
 
 
+def test_confirm_dedicated_box_accepts_case_and_whitespace(cfg, monkeypatch):
+    c = _consent_cfg(cfg)
+    _fixed_code(monkeypatch)
+    monkeypatch.setattr("builtins.input", lambda _: "  AbC123  ")
+
+    sections._confirm_dedicated_box(c)
+
+
 def test_confirm_dedicated_box_auto_yes_still_prompts(cfg, monkeypatch):
-    c = cfg.__class__(**{**cfg.__dict__, "dry_run": False, "auto_yes": True, "force": False})
+    c = _consent_cfg(cfg, auto_yes=True)
     prompts: list = []
-    monkeypatch.setattr("builtins.input", lambda _: prompts.append(1) or "y")
+    _fixed_code(monkeypatch)
+    monkeypatch.setattr("builtins.input",
+                        lambda _: prompts.append(1) or "AbC123")
 
     sections._confirm_dedicated_box(c)
 
@@ -381,7 +390,7 @@ def test_confirm_dedicated_box_auto_yes_still_prompts(cfg, monkeypatch):
 
 
 def test_confirm_dedicated_box_force_skips_prompt(cfg, monkeypatch):
-    c = cfg.__class__(**{**cfg.__dict__, "dry_run": False, "auto_yes": True, "force": True})
+    c = _consent_cfg(cfg, auto_yes=True, force=True)
     monkeypatch.setattr("builtins.input", lambda _: pytest.fail("force must not prompt"))
 
     sections._confirm_dedicated_box(c)
@@ -392,6 +401,20 @@ def test_confirm_dedicated_box_dry_run_never_bails(cfg, monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _: pytest.fail("dry-run must not prompt"))
 
     sections._confirm_dedicated_box(c)
+
+
+@pytest.mark.parametrize("exc", [EOFError, KeyboardInterrupt])
+def test_confirm_dedicated_box_interrupt_aborts(cfg, monkeypatch, exc):
+    c = _consent_cfg(cfg)
+    _fixed_code(monkeypatch)
+
+    def raise_(_):
+        raise exc
+
+    monkeypatch.setattr("builtins.input", raise_)
+
+    with pytest.raises(SystemExit):
+        sections._confirm_dedicated_box(c)
 
 
 # ── section_obs_irl_source + section_aitum_plugins (default plugin installs) ──
@@ -1077,7 +1100,8 @@ def test_apply_nvenc_default_sets_gpu_encoder(tmp_path):
 def test_dedicated_box_prompt_mentions_nvidia_driver(cfg, monkeypatch, capsys):
     monkeypatch.setattr(sections, "_nvidia_display_devices",
                         lambda: [pathlib.Path("/devices/fake")])
-    monkeypatch.setattr(sections, "confirm_always", lambda *a, **k: True)
+    monkeypatch.setattr(sections.secrets, "token_hex", lambda _: "abc123")
+    monkeypatch.setattr("builtins.input", lambda _: "abc123")
     sections._confirm_dedicated_box(cfg)
     assert "proprietary NVIDIA driver" in capsys.readouterr().out
 
