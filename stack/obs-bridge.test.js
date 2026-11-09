@@ -12,7 +12,7 @@ const assert = require('node:assert');
 // Import the pure helper without touching a live OBS: the module reads
 // components.json + host-info.json at load; both exist in stack/.
 process.env.OINK_STACK_DIR = require('path').join(__dirname, '..', 'stack');
-const { centeredBoundsTransform, mapIngestControls } = require('./obs-bridge.js');
+const { centeredBoundsTransform, mapIngestControls, streamOutputParams } = require('./obs-bridge.js');
 
 const close = (a, b) => Math.abs(a - b) < 1e-9;
 
@@ -79,4 +79,25 @@ test('mapIngestControls omits names with no OBS input and tolerates unknowns', (
     { name: 'solo', muted: null, visible: null, vertical: null, restartable: false },
   ]);
   assert.deepStrictEqual(mapIngestControls({ names: [] }), []);
+});
+
+// ── streamOutputParams (Simple vs Advanced profile mismatch) ─────────────────
+
+test('streamOutputParams reads Simple output when OBS is in Simple mode', () => {
+  const out = streamOutputParams(
+    'Simple',
+    { encoder: 'jim_nvenc', bitrate: '7500' },
+    { encoder: 'obs_x264', bitrate: 6000 },
+  );
+  assert.deepStrictEqual(out, { encoder: 'nvenc', bitrate: 7500, outputMode: 'Simple' });
+});
+
+test('streamOutputParams reads Advanced output when OBS is in Advanced mode', () => {
+  const out = streamOutputParams(
+    'Advanced',
+    { encoder: 'jim_nvenc', bitrate: '7500' },
+    { encoder: 'obs_x264', bitrate: 6000 },
+  );
+  assert.deepStrictEqual(out, { encoder: 'x264', bitrate: 6000, outputMode: 'Advanced' });
+  assert.deepStrictEqual(streamOutputParams('Advanced', {}, {}).bitrate, 0);
 });

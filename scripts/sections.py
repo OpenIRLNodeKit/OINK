@@ -31,6 +31,7 @@ from constants import (
     OINK_CLI,
     OINK_GROUP,
     OINK_LIBEXEC,
+    REBOOT_MARKER,
     SECURITY_PKGS,
     SRTLA_BUILD_PKGS,
     TAR_PKGS,
@@ -50,6 +51,49 @@ from obs_profile import (
     plugin_matches,
 )
 from process import apt_get, node_semver, run, run_ok, wait_port
+
+
+def _nvidia_display_devices() -> list[pathlib.Path]:
+    """PCI devices that are NVIDIA display controllers."""
+    found = []
+    for dev in pathlib.Path("/sys/bus/pci/devices").glob("*"):
+        try:
+            if (dev / "vendor").read_text().strip() != "0x10de":
+                continue
+            if not (dev / "class").read_text().strip().startswith("0x03"):
+                continue
+        except OSError:
+            continue
+        found.append(dev)
+    return found
+
+
+def _nvidia_driver_installed(cfg: SetupConfig) -> bool:
+    """True when the proprietary NVIDIA driver is loaded (headless GPU usable)."""
+    if pathlib.Path("/dev/nvidia0").exists():
+        return True
+    # dry-run must not treat a printed command as a successful probe
+    return not cfg.dry_run and run_ok(cfg, "nvidia-smi", "-L")
+
+
+def _nvidia_utils_version(cfg: SetupConfig) -> str | None:
+    """Installed nvidia-utils major version, e.g. "580" (LIB version match)."""
+    r = run(cfg, "dpkg-query", "-W", "-f=${Package}\n", "nvidia-utils-*",
+            check=False, capture=True)
+    versions = re.findall(r"^nvidia-utils-(\d+)$", r.stdout or "", re.MULTILINE)
+    return max(versions, key=int) if versions else None
+
+
+def _nvidia_pci_bus_id() -> str | None:
+    """Xorg BusID for the first NVIDIA display controller, e.g. PCI:6:0:0."""
+    for dev in _nvidia_display_devices():
+        try:
+            _, bus, slot_func = dev.name.split(":")
+            slot, func = slot_func.split(".")
+        except ValueError:
+            continue
+        return f"PCI:{int(bus, 16)}:{int(slot, 16)}:{int(func, 16)}"
+    return None
 
 
 def section_base_packages(cfg: SetupConfig, state: HostState) -> Result:
@@ -141,6 +185,9 @@ def _confirm_dedicated_box(cfg: SetupConfig) -> None:
     info(cfg, "  OINK expects a dedicated box: nothing else should be installed or")
     info(cfg, "  running here — other workloads can break it, and OINK's tweaks")
     info(cfg, "  (e.g. disabling unattended-upgrades) affect the whole system.")
+    if _nvidia_display_devices():
+        info(cfg, "  This box has an NVIDIA GPU: setup will also install the")
+        info(cfg, "  proprietary NVIDIA driver, so OBS renders and encodes on it.")
     if not confirm_always(
         cfg, "Confirm this box is dedicated to OINK — nothing else should be "
             "installed or run on it?"
@@ -222,6 +269,70 @@ def _load_v4l2loopback(cfg: SetupConfig) -> None:
         warn(cfg, "  → v4l2loopback not loadable (DKMS build needs matching kernel headers?)")
 
 
+def section_nvidia_driver(cfg: SetupConfig, state: HostState) -> Result:
+    """§1c  Install the proprietary NVIDIA driver on NVIDIA hosts.
+
+    Ubuntu's supported path is `ubuntu-drivers`, which picks the recommended
+    driver for the release. This runs before §2, so no X server has the GPU yet:
+    the module can usually be loaded in place (freeing nouveau) and setup
+    continues in the same run. Only when that fails is a reboot marker written
+    and the next `oink setup` run continues from §1b.
+    """
+    info(cfg, f"{Phase.NVIDIA_DRIVER.section_marker}  Configuring NVIDIA driver…")
+    if not _nvidia_display_devices():
+        info(cfg, "  → no NVIDIA GPU detected, skipping")
+        return Result(True, "no NVIDIA GPU")
+
+    dummy_conf = pathlib.Path("/etc/X11/xorg.conf.d/10-oink-dummy.conf")
+    if _nvidia_driver_installed(cfg):
+        info(cfg, "  → proprietary NVIDIA driver already loaded")
+        # A box that ran the old software path has a "done" dummy phase; drop it
+        # so §2 rewrites the display config for the GPU on this run.
+        if dummy_conf.exists():
+            state.completed_phases.discard(Phase.DUMMY_DISPLAY)
+        return Result(True, "NVIDIA driver already installed")
+
+    info(cfg, "  → NVIDIA GPU detected; OBS will render and encode on it")
+    if not confirm(
+        cfg, "Install the proprietary NVIDIA driver (ubuntu-drivers) and the NVENC runtime?"
+    ):
+        info(cfg, "  → skipped; OBS will keep using software rendering")
+        return Result(True, "NVIDIA driver install skipped by user")
+
+    if not run_ok(cfg, "command", "-v", "ubuntu-drivers"):
+        apt_get(cfg, "install", "-y", "ubuntu-drivers-common")
+    apt_get(cfg, "update")
+    run(cfg, "ubuntu-drivers", "install", "--gpgpu")
+
+    # NVENC runtime is a separate package from the driver.
+    version = _nvidia_utils_version(cfg)
+    if version:
+        apt_get(cfg, "install", "-y", f"libnvidia-encode-{version}")
+    elif not cfg.dry_run:
+        warn(cfg, "  → could not detect the installed driver version; install "
+                  "libnvidia-encode-<version> manually for NVENC")
+
+    sb = run(cfg, "mokutil", "--sb-state", check=False, capture=True)
+    if "SecureBoot enabled" in (sb.stdout or ""):
+        warn(cfg, "  → Secure Boot is enabled: the NVIDIA DKMS module must be "
+                  "enrolled (MOK) or the GPU will not load after reboot")
+
+    # OINK boxes are headless, so nouveau can be unloaded and the new module
+    # loaded now instead of after a reboot. X starts later (§2), so nothing
+    # holds the GPU. Failure just falls through to the reboot path.
+    run(cfg, "modprobe", "-r", "nouveau", check=False)
+    run(cfg, "modprobe", "nvidia", check=False)
+    if _nvidia_driver_installed(cfg):
+        info(cfg, "  → driver loaded; no reboot needed")
+        return Result(True, "NVIDIA driver installed and loaded")
+
+    if not cfg.dry_run:
+        REBOOT_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        REBOOT_MARKER.write_text("nvidia driver installed\n")
+    info(cfg, "  → driver installed; reboot required before the GPU is usable")
+    return Result(True, "NVIDIA driver installed")
+
+
 def section_obs_user(cfg: SetupConfig, state: HostState) -> Result:
     """§1b  Create the unprivileged `obsuser` runtime account + shared group.
 
@@ -250,7 +361,10 @@ def section_obs_user(cfg: SetupConfig, state: HostState) -> Result:
     run(cfg, "usermod", "-aG", OINK_GROUP, cfg.user)
     # /dev/video* is group `video`; OBS needs it to publish the virtual camera.
     run(cfg, "usermod", "-aG", "video", cfg.obs_user)
-    info(cfg, f"  → added {cfg.obs_user} and {cfg.user} to {OINK_GROUP}, {cfg.obs_user} to video")
+    # /dev/dri/renderD* is group `render`; needed for GPU render/VAAPI paths.
+    if run_ok(cfg, "getent", "group", "render"):
+        run(cfg, "usermod", "-aG", "render", cfg.obs_user)
+    info(cfg, f"  → added {cfg.obs_user} and {cfg.user} to {OINK_GROUP}, {cfg.obs_user} to video/render")
 
     # Shared runtime dirs: group-writable + setgid so files created by either
     # the runtime user or the admin inherit the group.
@@ -267,16 +381,31 @@ def section_obs_user(cfg: SetupConfig, state: HostState) -> Result:
 
 
 def section_dummy_display(cfg: SetupConfig, state: HostState) -> Result:
-    """§2  Configure dummy display at :99."""
-    info(cfg, f"{Phase.DUMMY_DISPLAY.section_marker}  Configuring dummy display at {DUMMY_DISPLAY}…")
-    dummy_conf = pathlib.Path("/etc/X11/xorg.conf.d/10-oink-dummy.conf")
-    if dummy_conf.exists():
-        info(cfg, "  → already exists, skipping")
-        return Result(True, "dummy display already configured")
+    """§2  Configure the :99 display, on the NVIDIA GPU when its driver is loaded."""
+    info(cfg, f"{Phase.DUMMY_DISPLAY.section_marker}  Configuring display at {DUMMY_DISPLAY}…")
+    xorg_dir = pathlib.Path("/etc/X11/xorg.conf.d")
+    dummy_conf = xorg_dir / "10-oink-dummy.conf"
+    nvidia_conf = xorg_dir / "10-oink-nvidia.conf"
+
+    if _nvidia_driver_installed(cfg):
+        text = cfg.template("10-oink-nvidia.conf").replace(
+            "$NVIDIA_BUSID", _nvidia_pci_bus_id() or "PCI:6:0:0")
+        target, stale = nvidia_conf, dummy_conf
+        info(cfg, "  → NVIDIA driver detected; using headless GPU display")
+    else:
+        text = cfg.template("10-oink-dummy.conf")
+        target, stale = dummy_conf, nvidia_conf
+
     if not cfg.dry_run:
-        dummy_conf.parent.mkdir(parents=True, exist_ok=True)
-        dummy_conf.write_text(cfg.template("10-oink-dummy.conf"))
-    info(cfg, f"  → wrote {dummy_conf}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists() or target.read_text() != text:
+            target.write_text(text)
+            info(cfg, f"  → wrote {target}")
+        else:
+            info(cfg, f"  → {target} already current")
+        # Only one of the two configs may exist: dropping the stale one lets a
+        # later `oink setup` switch the box back to software GL cleanly.
+        stale.unlink(missing_ok=True)
     return Result(True)
 
 
@@ -658,7 +787,12 @@ def section_oink_obs(cfg: SetupConfig, state: HostState) -> Result:
     run(cfg, "systemctl", "restart", "oink-firewall")
 
     # Write unit file (variable-expanded — must NOT be heredoc-style)
-    unit = cfg.template("oink-obs.service").replace("$OINK_USER", cfg.obs_user).replace(
+    # Software GL is only forced on hosts without the NVIDIA driver: there is
+    # no other GL stack there, and forcing it keeps CEF from probing GPU paths.
+    software_gl = "" if _nvidia_driver_installed(cfg) else "Environment=LIBGL_ALWAYS_SOFTWARE=1"
+    unit = cfg.template("oink-obs.service").replace(
+        "$SOFTWARE_GL_ENV", software_gl).replace(
+        "$OINK_USER", cfg.obs_user).replace(
         "$OINK_HOME", str(cfg.obs_home)).replace("$PW", pw).replace(
         "$RECORDING_DIR", str(cfg.recording_dir)).replace(
         "$OINK_LIBEXEC", str(OINK_LIBEXEC)).replace(

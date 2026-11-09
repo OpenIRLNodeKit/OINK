@@ -8,7 +8,14 @@ import os
 import subprocess
 import time
 
-from constants import CLIENT_PORT, OBS_WS_PORT, TUNNEL_PORT, VERIFY_TIMEOUT, VNC_PORT
+from constants import (
+    CLIENT_PORT,
+    OBS_HOME,
+    OBS_WS_PORT,
+    TUNNEL_PORT,
+    VERIFY_TIMEOUT,
+    VNC_PORT,
+)
 from logui import info, warn
 from models import HostState, Result, SetupConfig
 from process import wait_check
@@ -56,6 +63,12 @@ def verify(cfg: SetupConfig, state: HostState) -> Result:
     check("Display :99 responding", "DISPLAY=:99 xdpyinfo >/dev/null 2>&1")
     check(f"OBS websocket on :{OBS_WS_PORT}", f"ss -ltn | grep -q ':{OBS_WS_PORT}'")
     check(f"x11vnc on :{VNC_PORT}", f"ss -ltn | grep -q ':{VNC_PORT} '")
+
+    if os.path.exists("/dev/nvidia0"):
+        check("NVIDIA driver loaded", "nvidia-smi -L")
+        check("OBS rendering on NVIDIA",
+              f'grep -q "Loading up OpenGL on adapter NVIDIA" '
+              f'"$(ls -t {OBS_HOME}/.config/obs-studio/logs/*.txt | head -1)"')
 
     check("guacd active", "systemctl is-active guacd")
     check("oink-guac active", "systemctl is-active oink-guac")

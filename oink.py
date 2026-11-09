@@ -62,6 +62,7 @@ from constants import (
     IRL_SOURCE,
     MIN_VERSIONS,
     OINK_LIBEXEC,
+    REBOOT_MARKER,
     TAR_PKGS,
     VERTICAL_SCENE_COLLECTION,
 )
@@ -74,6 +75,7 @@ from sections import (
     section_base_packages,
     section_dummy_display,
     section_guacamole,
+    section_nvidia_driver,
     section_obs_golden,
     section_obs_install,
     section_obs_irl_source,
@@ -88,6 +90,7 @@ from verify import verify
 
 PHASE_SECTIONS: list[tuple[Phase, Callable[[SetupConfig, HostState], Result]]] = [
     (Phase.BASE_PACKAGES, section_base_packages),
+    (Phase.NVIDIA_DRIVER, section_nvidia_driver),
     (Phase.OBS_USER, section_obs_user),
     (Phase.DUMMY_DISPLAY, section_dummy_display),
     (Phase.OINK_DISPLAY, section_oink_display),
@@ -121,7 +124,7 @@ _UNIT_FOR_PHASE = {
 # AITUM_PLUGINS) — their sections already no-op when the plugin is present, so
 # fingerprinting pinned-data changes would only cause a needless OBS restart.
 _PHASE_TEMPLATES: dict[Phase, tuple[str, ...]] = {
-    Phase.DUMMY_DISPLAY: ("10-oink-dummy.conf",),
+    Phase.DUMMY_DISPLAY: ("10-oink-dummy.conf", "10-oink-nvidia.conf"),
     Phase.OINK_DISPLAY: ("oink-display.service",),
     Phase.OBS_GOLDEN: ("user.ini.golden",),
     Phase.OINK_OBS: ("oink-obs.service", "oink-obs-maximize.sh",
@@ -158,7 +161,10 @@ def _phase_artifacts_present(cfg: SetupConfig, phase: Phase) -> bool:
     if phase == Phase.OBS_USER:
         return run_ok(cfg, "getent", "passwd", cfg.obs_user)
     if phase == Phase.DUMMY_DISPLAY:
-        return pathlib.Path("/etc/X11/xorg.conf.d/10-oink-dummy.conf").exists()
+        return any(
+            (pathlib.Path("/etc/X11/xorg.conf.d") / name).exists()
+            for name in ("10-oink-dummy.conf", "10-oink-nvidia.conf")
+        )
     if phase in _UNIT_FOR_PHASE:
         return pathlib.Path(f"/etc/systemd/system/{_UNIT_FOR_PHASE[phase]}.service").exists()
     if phase == Phase.OBS_INSTALL:
@@ -299,6 +305,13 @@ def _run_host_phase(args) -> None:
         info(cfg, "  [dry-run] State tracking disabled; showing full run")
     else:
         state = HostState.load()
+        if REBOOT_MARKER.exists():
+            if pathlib.Path("/dev/nvidia0").exists() or run_ok(cfg, "nvidia-smi", "-L"):
+                REBOOT_MARKER.unlink(missing_ok=True)
+                info(cfg, "  → NVIDIA driver loaded; continuing setup")
+            else:
+                bail(cfg, "NVIDIA driver installed but not loaded yet — reboot, "
+                          "then rerun: sudo oink setup")
 
     for phase, section in PHASE_SECTIONS:
         if state.is_done(phase):
@@ -321,6 +334,11 @@ def _run_host_phase(args) -> None:
         if not dry_run:
             state.save()
         print(f"  → {phase.display_name} done in {int(time.time() - t0)}s")
+        if not dry_run and REBOOT_MARKER.exists():
+            print()
+            info(cfg, "  NVIDIA driver installed. Reboot, then rerun to finish setup:")
+            info(cfg, "    sudo oink setup")
+            raise SystemExit(0)
 
     # ── Verification ──────────────────────────────────────────────────────────
     if dry_run:

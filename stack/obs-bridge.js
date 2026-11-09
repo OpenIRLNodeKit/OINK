@@ -813,6 +813,35 @@ function normalizeEncoder(raw) {
   return raw || 'x264';
 }
 
+// OBS Advanced output keeps stream encoder settings in streamEncoder.json,
+// which obs-websocket cannot write. The dashboard only models simple output
+// (encoder + bitrate), so report the Advanced encoder honestly while writes
+// converge OBS back to Simple mode.
+function streamOutputParams(mode, simple, advanced) {
+  const adv = mode === 'Advanced';
+  return {
+    encoder: normalizeEncoder(adv ? advanced.encoder : simple.encoder),
+    bitrate: parseInt((adv ? advanced.bitrate : simple.bitrate) || '0', 10) || 0,
+    outputMode: adv ? 'Advanced' : 'Simple',
+  };
+}
+
+// Advanced-mode bitrate lives outside basic.ini; read it best-effort.
+function readStreamEncoderJson() {
+  const file = path.join(
+    path.dirname(OBS_LOG_DIR),
+    'basic',
+    'profiles',
+    currentObsProfileName(),
+    'streamEncoder.json',
+  );
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
 function encoderId(encoder) {
   return ENCODERS[encoder] || ENCODERS.x264;
 }
@@ -846,16 +875,25 @@ async function _getStreamSettings() {
   const req = (type, data) => bridge.request(type, data);
 
   const video = await req('GetVideoSettings');
-  const encoder = await _getProfileParam(req, 'SimpleOutput', 'StreamEncoder');
-  const bitrate = await _getProfileParam(req, 'SimpleOutput', 'VBitrate');
+  const mode = await _getProfileParam(req, 'Output', 'Mode') === 'Advanced' ? 'Advanced' : 'Simple';
+  const simple = {
+    encoder: await _getProfileParam(req, 'SimpleOutput', 'StreamEncoder'),
+    bitrate: await _getProfileParam(req, 'SimpleOutput', 'VBitrate'),
+  };
+  const advanced = {
+    encoder: await _getProfileParam(req, 'AdvOut', 'Encoder'),
+    bitrate: readStreamEncoderJson().bitrate,
+  };
+  const params = streamOutputParams(mode, simple, advanced);
 
   return {
-    encoder: normalizeEncoder(encoder),
+    encoder: params.encoder,
+    outputMode: params.outputMode,
     outputWidth: video.outputWidth,
     outputHeight: video.outputHeight,
     fpsNumerator: video.fpsNumerator,
     fpsDenominator: video.fpsDenominator,
-    bitrate: parseInt(bitrate || '0', 10) || 0,
+    bitrate: params.bitrate,
     hasNvenc: readHasNvenc(),
     streamActive: await _isAnyOutputActive(req),
   };
@@ -872,6 +910,15 @@ async function _setStreamSettings(settings) {
   if (await _isAnyOutputActive(req)) {
     throw new BusyError('Stop the stream, recording, and virtual camera before changing stream settings');
   }
+
+  // Converge to Simple output first: Advanced-mode encoder settings live in
+  // streamEncoder.json, which obs-websocket cannot write, so the dashboard's
+  // encoder/bitrate would otherwise be ignored. Takes effect on next OBS start.
+  await req('SetProfileParameter', {
+    parameterCategory: 'Output',
+    parameterName: 'Mode',
+    parameterValue: 'Simple',
+  });
 
   await req('SetVideoSettings', {
     outputWidth: settings.outputWidth,
@@ -1277,6 +1324,7 @@ module.exports = {
   removePlatformFromMultistream,
   writeMultistreamConfig,
   centeredBoundsTransform,
+  streamOutputParams,
   startStream,
   stopStream,
   getStreamStatus,

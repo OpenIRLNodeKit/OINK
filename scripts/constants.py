@@ -82,6 +82,9 @@ SECURITY_PKGS = ["fail2ban", "nftables"]
 # Paths
 STATE_DIR = BASE_DIR / "state"
 STATE_FILE = STATE_DIR / "host_state.json"
+# Written when setup installs a kernel driver that only loads after reboot; the
+# next `oink setup` run clears it once the driver is live.
+REBOOT_MARKER = STATE_DIR / "reboot-required"
 TEMPLATE_DIR = BASE_DIR / "templates"
 
 # Timeouts

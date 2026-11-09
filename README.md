@@ -26,6 +26,7 @@ OpenIRLNodeKit (OINK) sits between your mobile or desktop and platforms like Twi
   - VM or bare metal
 - 6+ CPU cores, 8+ GB RAM recommended
 - A GPU is optional, but highly recommended
+  - NVIDIA GTX 10/16 series and RTX 20/30/40/50 series confirmed working
 
 ### Install
 

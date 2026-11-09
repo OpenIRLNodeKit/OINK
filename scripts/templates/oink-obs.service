@@ -9,7 +9,7 @@ After=oink-display.service
 User=$OINK_USER
 Environment=HOME=$OINK_HOME
 Environment=DISPLAY=:99
-Environment=LIBGL_ALWAYS_SOFTWARE=1
+$SOFTWARE_GL_ENV
 Environment=RECORDING_DIR=$RECORDING_DIR
 ExecStartPre=/bin/sh -c 'until DISPLAY=:99 xdpyinfo >/dev/null 2>&1; do sleep 1; done'
 ExecStartPre=/bin/sh -c '/usr/bin/pkill -x obs || true'

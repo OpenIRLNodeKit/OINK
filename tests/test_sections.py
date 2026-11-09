@@ -954,6 +954,19 @@ def test_preview_crop_persistence(cfg):
     assert len(defaults) == 1  # templates stay in sync
 
 
+def test_software_gl_only_forced_without_nvidia_driver(cfg):
+    """OBS must not force llvmpipe when the NVIDIA driver is present; setup
+    injects the software-GL env only on non-NVIDIA hosts."""
+    unit = cfg.template("oink-obs.service")
+    assert "$SOFTWARE_GL_ENV" in unit
+    assert "LIBGL_ALWAYS_SOFTWARE=1" not in unit
+
+    nvidia = cfg.template("10-oink-nvidia.conf")
+    assert 'Driver      "nvidia"' in nvidia
+    assert "$NVIDIA_BUSID" in nvidia
+    assert 'Modes "1920x1080_60"' in nvidia
+    assert "Virtual 1920 1080" in nvidia
+
 def test_scenes_default_output_1080p30(cfg):
     """The scenes helper converges the profile onto the dashboard's 1080p30
     preset (resolution + fps + bitrate) so /settings highlights it by default."""
@@ -1042,3 +1055,67 @@ def test_dry_run_host_sections_write_nothing(tmp_path, cfg, monkeypatch):
         assert fn(c, state).success
 
     assert writes == [], f"dry-run wrote: {sorted(set(writes))}"
+
+
+# ── NVIDIA driver phase ──────────────────────────────────────────────────────
+
+def test_apply_nvenc_default_sets_gpu_encoder(tmp_path):
+    import configparser
+
+    profile = tmp_path / "basic.ini"
+    profile.write_text(
+        "[Output]\nMode=Advanced\n\n[SimpleOutput]\nStreamEncoder=obs_x264\n"
+    )
+    obs_profile._apply_nvenc_default(profile)
+    config = configparser.ConfigParser(strict=False)
+    config.read(profile)
+    assert config.get("Output", "Mode") == "Simple"
+    assert config.get("SimpleOutput", "StreamEncoder") == "jim_nvenc"
+    assert config.get("SimpleOutput", "NVENCPreset2") == "p6"
+
+
+def test_dedicated_box_prompt_mentions_nvidia_driver(cfg, monkeypatch, capsys):
+    monkeypatch.setattr(sections, "_nvidia_display_devices",
+                        lambda: [pathlib.Path("/devices/fake")])
+    monkeypatch.setattr(sections, "confirm_always", lambda *a, **k: True)
+    sections._confirm_dedicated_box(cfg)
+    assert "proprietary NVIDIA driver" in capsys.readouterr().out
+
+
+def test_nvidia_driver_loads_in_place_without_reboot(tmp_path, cfg, monkeypatch):
+    """Headless box: unload nouveau, load nvidia now -> no reboot marker."""
+    marker = tmp_path / "reboot-required"
+    loaded = iter([False, True])  # not loaded before install, loaded after modprobe
+    monkeypatch.setattr(sections, "REBOOT_MARKER", marker)
+    monkeypatch.setattr(sections, "_nvidia_display_devices",
+                        lambda: [pathlib.Path("/devices/fake")])
+    monkeypatch.setattr(sections, "_nvidia_driver_installed", lambda c_: next(loaded))
+    monkeypatch.setattr(sections, "_nvidia_utils_version", lambda c_: "580")
+    monkeypatch.setattr(sections, "confirm", lambda *a, **k: True)
+    monkeypatch.setattr(sections, "run_ok", lambda *a, **k: True)
+    monkeypatch.setattr(sections, "run", lambda *a, **k: _completed(0))
+    monkeypatch.setattr(sections, "apt_get", lambda *a, **k: None)
+    monkeypatch.setattr(sections, "info", lambda *a, **k: None)
+    monkeypatch.setattr(sections, "warn", lambda *a, **k: None)
+
+    assert sections.section_nvidia_driver(cfg, HostState()).success
+    assert not marker.exists()
+
+
+def test_nvidia_driver_falls_back_to_reboot_marker(tmp_path, cfg, monkeypatch):
+    marker = tmp_path / "reboot-required"
+    loaded = iter([False, False])  # module still not usable after modprobe
+    monkeypatch.setattr(sections, "REBOOT_MARKER", marker)
+    monkeypatch.setattr(sections, "_nvidia_display_devices",
+                        lambda: [pathlib.Path("/devices/fake")])
+    monkeypatch.setattr(sections, "_nvidia_driver_installed", lambda c_: next(loaded))
+    monkeypatch.setattr(sections, "_nvidia_utils_version", lambda c_: "580")
+    monkeypatch.setattr(sections, "confirm", lambda *a, **k: True)
+    monkeypatch.setattr(sections, "run_ok", lambda *a, **k: True)
+    monkeypatch.setattr(sections, "run", lambda *a, **k: _completed(0))
+    monkeypatch.setattr(sections, "apt_get", lambda *a, **k: None)
+    monkeypatch.setattr(sections, "info", lambda *a, **k: None)
+    monkeypatch.setattr(sections, "warn", lambda *a, **k: None)
+
+    assert sections.section_nvidia_driver(cfg, HostState()).success
+    assert marker.exists()

@@ -31,7 +31,8 @@ from constants import (
 )
 from logui import info, warn
 from models import HostState, Phase, Result, SetupConfig
-from obs_ws import connect as _ws_connect, request as _ws_request
+from obs_ws import connect as _ws_connect
+from obs_ws import request as _ws_request
 from process import run, run_ok, wait_port
 
 
@@ -155,6 +156,28 @@ def section_obs_vertical(cfg: SetupConfig, state: HostState) -> Result:
     return Result(True, "vertical canvas configured")
 
 
+def _apply_nvenc_default(path: pathlib.Path) -> None:
+    """Point a fresh profile at the GPU encoder (only ever called on new profiles)."""
+    config = configparser.ConfigParser(strict=False)
+    config.optionxform = str
+    config.read(path)
+    for section in ("Output", "SimpleOutput"):
+        if not config.has_section(section):
+            config.add_section(section)
+    config.set("Output", "Mode", "Simple")
+    config.set("SimpleOutput", "StreamEncoder", "jim_nvenc")
+    config.set("SimpleOutput", "NVENCPreset2", "p6")
+    with path.open("w") as f:
+        config.write(f)
+
+
+def _nvidia_ready(cfg: SetupConfig) -> bool:
+    """Proprietary NVIDIA driver loaded (NVENC advertised to the dashboard)."""
+    if pathlib.Path("/dev/nvidia0").exists():
+        return True
+    return not cfg.dry_run and run_ok(cfg, "nvidia-smi", "-L")
+
+
 def _ensure_oink_profile(cfg: SetupConfig) -> None:
     """Make the oink OBS profile complete on disk: user.ini (golden) + basic.ini.
 
@@ -184,6 +207,9 @@ def _ensure_oink_profile(cfg: SetupConfig) -> None:
         untitled_basic = cfg.obs_cfg / "basic" / "profiles" / "Untitled" / "basic.ini"
         if untitled_basic.exists():
             basic_ini.write_text(untitled_basic.read_text())
+            if _nvidia_ready(cfg):
+                _apply_nvenc_default(basic_ini)
+                info(cfg, "  → defaulted stream encoder to NVENC (NVIDIA GPU)")
             run(cfg, "chown", f"{cfg.obs_user}:{cfg.obs_user}", str(basic_ini))
             info(cfg, f"  → copied Untitled basic.ini → {basic_ini} (oink profile)")
 

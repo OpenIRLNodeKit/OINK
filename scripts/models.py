@@ -17,6 +17,7 @@ from constants import OBS_HOME, OBS_PROFILE, OBS_USER, STATE_DIR, STATE_FILE, TE
 
 class Phase(Enum):
     BASE_PACKAGES = "base_packages"
+    NVIDIA_DRIVER = "nvidia_driver"
     OBS_USER = "obs_user"
     DUMMY_DISPLAY = "dummy_display"
     OINK_DISPLAY = "oink_display"
@@ -40,6 +41,7 @@ class Phase(Enum):
     def section_marker(self) -> str:
         markers = {
             Phase.BASE_PACKAGES: "§1",
+            Phase.NVIDIA_DRIVER: "§1c",
             Phase.OBS_USER: "§1b",
             Phase.DUMMY_DISPLAY: "§2",
             Phase.OINK_DISPLAY: "§3",
