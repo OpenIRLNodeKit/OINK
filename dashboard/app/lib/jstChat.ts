@@ -1,10 +1,9 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 export const JST_CHAT_BASE_URL = 'https://itsalviiin.github.io/JstChat2/#/chat';
-export const JST_CHAT_STORAGE_KEY = 'oink_jst_chat_config';
+const JST_CHAT_STORAGE_KEY = 'oink_jst_chat_config';
 
 export const JST_CHAT_SCENES = ['main', 'brb', 'privacy', 'offline', 'low-br'] as const;
-export type JstChatScene = (typeof JST_CHAT_SCENES)[number];
 
 export type SharedChatBadge = 'off' | 'simple' | 'profile';
 
@@ -19,7 +18,7 @@ export interface JstChatOptions {
   ignoreList: string;
 }
 
-export const DEFAULT_JST_CHAT_OPTIONS: JstChatOptions = {
+export const DEFAULT_JST_CHAT_CONFIG: JstChatOptions = {
   showShadow: true,
   fadeAfter: '30',
   highlightFirstTime: false,
@@ -32,13 +31,11 @@ export const DEFAULT_JST_CHAT_OPTIONS: JstChatOptions = {
 
 export type JstChatConfig = JstChatOptions;
 
-export const DEFAULT_JST_CHAT_CONFIG: JstChatConfig = DEFAULT_JST_CHAT_OPTIONS;
-
 export function buildJstChatUrl(
   channel: string,
   config: JstChatConfig,
 ): string {
-  const options = { ...DEFAULT_JST_CHAT_OPTIONS, ...config };
+  const options = { ...DEFAULT_JST_CHAT_CONFIG, ...config };
   const params = new URLSearchParams();
   params.set('channel', channel);
   const parts: string[] = [params.toString()];

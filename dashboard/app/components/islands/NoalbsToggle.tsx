@@ -4,7 +4,7 @@
 
 import { Toggle } from '../ui';
 
-export interface NoalbsToggleProps {
+interface NoalbsToggleProps {
   running: boolean | null;
   pending: boolean;
   error: string | null;

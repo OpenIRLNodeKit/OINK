@@ -3,13 +3,12 @@
 export const SRT_PORT = 8890;
 export const SRTLA_PORT = 5000;
 export const RTMP_PORT = 1935;
-export const RTSP_PORT = 8554;
 
 // Reserved ingest label: always present, non-deletable, and the default feed
 // NOALBS monitors. Mirrors stack/ingest.js RESERVED_LABEL.
 export const INGEST_RESERVED_LABEL = 'irl';
 
-export interface IngestUrls {
+interface IngestUrls {
   rtmp: string;
   srt: string;
   srtLiveU: string;
@@ -54,7 +53,7 @@ export function generateSrtlaUrl(
 
 // BELABOX splits SRTLA config across three boxes instead of one URL: the relay
 // address/port (oink-srtla, UDP :5000) and the SRT streamid for MediaMTX.
-export interface SrtlaDetails {
+interface SrtlaDetails {
   serverAddress: string;
   port: string;
   streamId: string;
@@ -86,7 +85,7 @@ export function generateIngestUrls(
 }
 
 // LiveU Solo Portal splits SRT config across separate boxes instead of one URL.
-export interface LiveUDetails {
+interface LiveUDetails {
   destination: string;
   primaryIngress: string;
   streamId: string;

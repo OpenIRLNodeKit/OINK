@@ -74,7 +74,7 @@ export async function saveNoalbsEnv(content: string): Promise<void> {
   });
 }
 
-export interface ServiceStatus {
+interface ServiceStatus {
   running: boolean;
 }
 
@@ -297,7 +297,7 @@ export interface DefaultPluginStatus {
   default: true;
 }
 
-export interface IrlSourceStatus {
+interface IrlSourceStatus {
   name: string;
   version: string;
   installed: boolean;
@@ -305,7 +305,7 @@ export interface IrlSourceStatus {
   dir: string;
 }
 
-export interface PluginInstallResult {
+interface PluginInstallResult {
   ok: boolean;
   name: string;
   so: string;
@@ -426,7 +426,7 @@ export async function restartObs(): Promise<void> {
 
 export type Platform = 'twitch' | 'youtube' | 'kick' | 'custom-rtmp';
 
-export interface ObsStreamService {
+interface ObsStreamService {
   platform: Platform;
   service: string;
   server: string;
@@ -510,7 +510,7 @@ export async function setPrimaryPlatform(
   return { restartRequired: data.restartRequired ?? true };
 }
 
-export interface DashboardSettings {
+interface DashboardSettings {
   welcomeComplete: boolean;
   twitchChannel: string;
   presetProvided: boolean;
@@ -561,7 +561,7 @@ export type MultistreamKeys = Partial<
   Record<MultistreamPlatform, MultistreamKeyStatus>
 >;
 
-export interface MultistreamKeysResponse {
+interface MultistreamKeysResponse {
   platforms: MultistreamKeys;
   primaryPlatform: Platform;
 }
@@ -632,7 +632,7 @@ export async function deleteObsBrowserSource(name: string): Promise<void> {
   );
 }
 
-export interface ObsScenes {
+interface ObsScenes {
   currentProgramScene: string;
   scenes: string[];
 }
@@ -882,7 +882,7 @@ export function recordingThumbUrl(name: string): string {
 
 // ── Backup / restore ────────────────────────────────────────────────────────
 
-export interface BackupSize {
+interface BackupSize {
   files: number;
   bytes: number;
 }
@@ -917,7 +917,7 @@ export function logsDownloadUrl(): string {
   return '/api/log-bundle';
 }
 
-export interface RestoreResult {  restored: string[];
+interface RestoreResult {  restored: string[];
   skipped: string[];
   failed: { path: string; error: string }[];
   restarted: string[];

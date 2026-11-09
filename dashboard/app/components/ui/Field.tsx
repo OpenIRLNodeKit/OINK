@@ -5,7 +5,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
-export interface FieldProps {
+interface FieldProps {
   label: string;
   htmlFor?: string;
   hint?: string;

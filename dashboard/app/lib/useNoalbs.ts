@@ -10,7 +10,7 @@ const POLL_INTERVAL_MS = 5000;
 // scene collection the switcher governs.
 const DEFAULT_MANAGED_SCENES = ['main', 'low-br', 'offline'];
 
-export interface NoalbsState {
+interface NoalbsState {
   running: boolean | null;
   enabled: boolean;
   managedScenes: string[];

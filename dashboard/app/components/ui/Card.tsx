@@ -5,7 +5,7 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '../../lib/cn';
 
-export interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   title?: string;
   description?: string;
   pad?: boolean;

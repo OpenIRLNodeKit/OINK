@@ -21,7 +21,7 @@ export interface AuthStatus {
   setupRequired?: boolean;
 }
 
-export interface AuthResult {
+interface AuthResult {
   ok: boolean;
   error?: string;
   user?: AuthUser | null;

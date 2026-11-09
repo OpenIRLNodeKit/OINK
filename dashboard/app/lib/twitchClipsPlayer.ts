@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 export const TWITCH_CLIPS_BASE_URL = 'https://twitchclipsplayer.com/clips.html';
-export const TWITCH_CLIPS_STORAGE_KEY = 'oink_twitch_clips_config';
-export const TWITCH_CLIPS_PROVIDER_KEY = 'oink_twitch_clips_provider';
+const TWITCH_CLIPS_STORAGE_KEY = 'oink_twitch_clips_config';
+const TWITCH_CLIPS_PROVIDER_KEY = 'oink_twitch_clips_provider';
 
 export type TwitchClipsProvider = 'twitch-clips-player' | 'irlserver-player';
 
-export const DEFAULT_TWITCH_CLIPS_PROVIDER: TwitchClipsProvider =
+const DEFAULT_TWITCH_CLIPS_PROVIDER: TwitchClipsProvider =
   'twitch-clips-player';
 
 export function loadTwitchClipsProvider(): TwitchClipsProvider {
@@ -26,7 +26,6 @@ export function saveTwitchClipsProvider(provider: TwitchClipsProvider): void {
 }
 
 export const TWITCH_CLIPS_SCENES = ['main', 'brb', 'privacy', 'offline', 'low-br'] as const;
-export type TwitchClipsScene = (typeof TWITCH_CLIPS_SCENES)[number];
 
 export const TWITCH_CLIPS_THEMES: Array<{ value: number; label: string }> = [
   { value: 1, label: 'None' },

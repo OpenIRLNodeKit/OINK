@@ -5,7 +5,7 @@
 import type { UseObsScenesResult } from '../../lib/useObsScenes';
 import { Badge, Button } from '../ui';
 
-export interface SceneSwitcherProps extends UseObsScenesResult {
+interface SceneSwitcherProps extends UseObsScenesResult {
   /** Scene names governed by the NOALBS auto-switcher (from its config). */
   managedScenes?: string[];
   /** True when NOALBS is running and `bitrateSwitcherEnabled`. */

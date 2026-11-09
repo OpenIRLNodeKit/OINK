@@ -33,7 +33,6 @@ CLIENT_PORT = 8081
 # streamid still gates access. There is no upstream release tarball, so it is
 # built from source at setup and pinned to a commit (see stack.py §5).
 SRTLA_PORT = 5000
-SRTLA_METRICS_PORT = 9191
 SRTLA_BIN = "srtla_rec"
 # Build toolchain srtla_rec needs (no upstream release; built at setup §5).
 # Tracked separately so the §1 apt gate (§1 base packages) sees it as a

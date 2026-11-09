@@ -13,7 +13,7 @@ export const themes = [
 
 export const DEFAULT_THEME = 'rose' as Theme;
 
-export function isValidTheme(value: unknown): value is Theme {
+function isValidTheme(value: unknown): value is Theme {
   return typeof value === 'string' && themes.some((t) => t.id === value);
 }
 

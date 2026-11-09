@@ -15,7 +15,7 @@ import { useIntervalPolling } from './useIntervalPolling';
 // an optimistic flip on toggle and a revert if the OBS call fails.
 const POLL_INTERVAL_MS = 5000;
 
-export interface UseIngestControlsResult {
+interface UseIngestControlsResult {
   state: Record<string, IngestControlState>;
   pending: string | null;
   error: string | null;

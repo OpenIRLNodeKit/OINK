@@ -20,7 +20,7 @@ export interface IngestSeries {
   history: StatusSample[];
 }
 
-export interface StatusLatest {
+interface StatusLatest {
   scene: string | null;
   low: number | null;
   offline: number | null;
@@ -38,7 +38,7 @@ export interface StatusPacket {
   offline: number | null;
 }
 
-export interface UseStatusUpdateResult {
+interface UseStatusUpdateResult {
   connected: boolean;
   ingests: IngestSeries[];
   latest: StatusLatest | null;

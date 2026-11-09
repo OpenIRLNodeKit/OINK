@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn';
 import { copyText } from '../../lib/copy';
 import { Field } from './Field';
 
-export interface SecretFieldProps {
+interface SecretFieldProps {
   id: string;
   label: string;
   value: string;

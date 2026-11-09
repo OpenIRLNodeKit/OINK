@@ -26,7 +26,7 @@ const sizes = {
   lg: 'px-5 py-2.5 text-[15px] rounded-control',
 } as const;
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
 }

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 OpenIRLNodeKit contributors
 // SPDX-License-Identifier: AGPL-3.0-or-later
 export const IRL_SERVER_PLAYER_BASE_URL = 'https://clips.irl.ac/';
-export const IRL_SERVER_PLAYER_STORAGE_KEY =
+const IRL_SERVER_PLAYER_STORAGE_KEY =
   'oink_irl_server_player_config';
 
 export const IRL_SERVER_SHUFFLE_MODES = [

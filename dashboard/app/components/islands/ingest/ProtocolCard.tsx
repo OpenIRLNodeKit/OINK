@@ -8,7 +8,7 @@ import { copyText } from '../../../lib/copy';
 import type { BadgeProps } from '../../ui/Badge';
 import { Badge } from '../../ui/Badge';
 
-export interface ProtocolCardDetail {
+interface ProtocolCardDetail {
   label: string;
   value: string;
   secret?: boolean;

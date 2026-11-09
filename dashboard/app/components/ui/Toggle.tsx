@@ -5,7 +5,7 @@
 import { forwardRef, type InputHTMLAttributes } from 'react';
 import { cn } from '../../lib/cn';
 
-export interface ToggleProps
+interface ToggleProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   label?: string;
   description?: string;
